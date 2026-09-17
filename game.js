@@ -7,14 +7,35 @@ const fmt=t=>{const s=Math.floor(t);return `${String(Math.floor(s/60)).padStart(
 $('best').textContent=best?.time?fmt(best.time):'—';
 function beep(freq,duration=.12,type='sine',volume=.045){if(!sound)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();audio.resume();const o=audio.createOscillator(),g=audio.createGain();o.type=type;o.frequency.setValueAtTime(freq,audio.currentTime);o.frequency.exponentialRampToValueAtTime(freq*.55,audio.currentTime+duration);g.gain.setValueAtTime(volume,audio.currentTime);g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);o.connect(g);g.connect(audio.destination);o.start();o.stop(audio.currentTime+duration)}catch{}}
 function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2400)}
-function start(){game.reset();fx=[];flash=0;shake=0;$('feedback').textContent='輸入魔物名字，即可施放目前法術。';$('feedback').className='';previousMode='';renderUI();beep(440)}
+function start(){canvas.focus({preventScroll:true});game.reset();fx=[];flash=0;shake=0;$('feedback').textContent='輸入魔物名字，即可施放目前法術。';$('feedback').className='';previousMode='';renderUI();beep(440)}
 $('start').onclick=start;$('again').onclick=start;$('restartPaused').onclick=start;
 $('home').onclick=()=>{game.mode='start';game.enemies=[];game.input='';renderUI()};$('pause').onclick=()=>{game.pause();renderUI()};$('resume').onclick=()=>{game.pause();renderUI()};
 $('fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('game').requestFullscreen()}catch{toast('此瀏覽器無法開啟全螢幕，可改用瀏覽器的全螢幕功能。')}};
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent=`音效 ${sound?'開':'關'}`;$('sound').setAttribute('aria-label',sound?'關閉音效':'開啟音效');beep(580)};
 document.querySelectorAll('[data-spell]').forEach(b=>b.onclick=()=>{if(game.mode==='playing'){game.spell=+b.dataset.spell;renderUI()}});
-document.addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey)return;if(e.isComposing||e.keyCode===229){if(['playing','ritual'].includes(game.mode))toast('請先切換成英文輸入法，再按注音對應鍵位。');return}if(e.key==='Escape'){e.preventDefault();game.pause();renderUI();return}if(!['playing','ritual'].includes(game.mode))return;const key=e.key.toLowerCase();if(KEYS[key]||['Backspace','Enter','Tab','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();if(e.repeat&&e.key!=='Backspace')return;
- if(e.key==='Tab')game.select(e.shiftKey?-1:1);else if(e.key==='ArrowLeft')game.changeSpell(-1);else if(e.key==='ArrowRight')game.changeSpell(1);else if(e.key==='Enter')game.submit();else game.type(e.key==='Backspace'?'Backspace':key);processEvents();renderUI();});
+function handleGameKey(e){
+ if(e.ctrlKey||e.metaKey||e.altKey)return;
+ const active=['playing','ritual'].includes(game.mode);
+ // Game controls must be handled before IME checks, and before button defaults.
+ const control=['Tab','ArrowLeft','ArrowRight','Escape'].includes(e.key);
+ if(control){
+  if(!active&&!(game.mode==='paused'&&e.key==='Escape'))return;
+  e.preventDefault();e.stopPropagation();
+  if(e.repeat)return;
+  if(e.key==='Escape')game.pause();
+  else if(e.key==='Tab')game.select(e.shiftKey?-1:1);
+  else game.changeSpell(e.key==='ArrowLeft'?-1:1);
+  processEvents();renderUI();return;
+ }
+ if(!active)return;
+ if(e.isComposing||e.keyCode===229){toast('請先切換成英文輸入法，再按注音對應鍵位。');return}
+ const key=e.key.toLowerCase();
+ if(KEYS[key]||['Backspace','Enter'].includes(e.key)){e.preventDefault();e.stopPropagation()}
+ if(e.repeat&&e.key!=='Backspace')return;
+ if(e.key==='Enter')game.submit();else game.type(e.key==='Backspace'?'Backspace':key);
+ processEvents();renderUI();
+}
+window.addEventListener('keydown',handleGameKey,{capture:true});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&['playing','ritual'].includes(game.mode)){game.pause();renderUI()}});
 function processEvents(){for(const e of game.events){switch(e.type){case'arrow':fx.push({...e,life:.25,max:.25});break;case'cast':fx.push({...e,life:.6,max:.6});beep([340,220,520,680][e.spell]);$('feedback').textContent=`已施放${SPELLS[e.spell].name}，重新鎖定最近的魔物。`;$('feedback').className='good';break;case'wrong':beep(110,.2,'triangle');if(game.mode==='ritual'){$('ritualMessage').textContent='咒語不正確，已清空。看清楚聲調，再試一次。';$('ritualMessage').classList.add('bad')}else{$('feedback').textContent='名字不正確，已清空。請看清楚注音與聲調。';$('feedback').className='bad'}break;case'death':fx.push({...e,life:.9,max:.9});beep(740,.08,'sine',.02);break;case'clash':fx.push({...e,life:.2,max:.2});break;case'hurt':shake=.22;beep(80,.15,'triangle');break;case'ultimate':flash=1.2;for(let i=0;i<80;i++)fx.push({type:'spark',x:CX,y:CY,angle:Math.random()*Math.PI*2,speed:80+Math.random()*650,life:1.6,max:1.6});beep(1000,1,'sine',.12);toast(`曙光降臨！清除 ${e.count} 隻魔物`);break;case'ritual':beep(700,.8);break;case'end':saveResult();break;}}game.events=[];}
 function saveResult(){const record=!best||game.time>best.time;let saved=true;if(record){best={time:game.time,kills:game.kills,casts:game.casts,accuracy:game.attempts?Math.round(game.correct/game.attempts*100):0};try{localStorage.setItem('forest-watch-best-v1',JSON.stringify(best))}catch{saved=false}$('best').textContent=fmt(best.time)}$('endTitle').textContent=record?'新的守望紀錄。':'火光仍會再燃。';$('endTime').textContent=fmt(game.time);$('endKills').textContent=game.kills;$('endCasts').textContent=game.casts;$('endAccuracy').textContent=game.attempts?`${Math.round(game.correct/game.attempts*100)}%`:'—';$('recordMessage').textContent=!saved?'瀏覽器無法儲存紀錄，本次成績仍顯示於此。':record?'你的最佳成績已儲存在此瀏覽器。':`個人最佳 ${fmt(best.time)}，再試一次吧。`}

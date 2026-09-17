@@ -1,6 +1,7 @@
 'use strict';
 const {Game,KEYS,SPELLS,CX,CY,display,formatInput}=ForestCore;
-const game=new Game();const $=id=>document.getElementById(id);const canvas=$('canvas'),ctx=canvas.getContext('2d');const bg=new Image();bg.src='assets/forest-empty-tower.png';
+const game=new Game();
+const storyBook=new ForestStory.StoryBook();const $=id=>document.getElementById(id);const canvas=$('canvas'),ctx=canvas.getContext('2d');const bg=new Image();bg.src='assets/forest-empty-tower.png';
 const {ARCHER,ArcherMotion}=ForestVisuals;
 const archer=new ArcherMotion();
 const spriteMeta={"archer":{"file":"archer-eight-directions.png","frames":[{"x":47,"y":21,"w":265,"h":270,"pivotX":154,"pivotY":288},{"x":370,"y":37,"w":231,"h":256,"pivotX":468,"pivotY":290},{"x":705,"y":25,"w":172,"h":268,"pivotX":784,"pivotY":290},{"x":972,"y":54,"w":235,"h":239,"pivotX":1095,"pivotY":290},{"x":18,"y":327,"w":278,"h":276,"pivotX":150,"pivotY":600},{"x":370,"y":330,"w":225,"h":274,"pivotX":483,"pivotY":601},{"x":718,"y":323,"w":156,"h":278,"pivotX":788,"pivotY":598},{"x":980,"y":327,"w":222,"h":276,"pivotX":1090,"pivotY":600},{"x":46,"y":642,"w":241,"h":267,"pivotX":154,"pivotY":906},{"x":372,"y":653,"w":220,"h":256,"pivotX":468,"pivotY":906},{"x":699,"y":645,"w":188,"h":267,"pivotX":784,"pivotY":909},{"x":975,"y":664,"w":223,"h":247,"pivotX":1095,"pivotY":908},{"x":44,"y":941,"w":251,"h":275,"pivotX":165,"pivotY":1213},{"x":370,"y":941,"w":225,"h":275,"pivotX":483,"pivotY":1213},{"x":706,"y":941,"w":168,"h":275,"pivotX":791,"pivotY":1213},{"x":983,"y":941,"w":216,"h":275,"pivotX":1094,"pivotY":1213}]},"monsters":{"file":"monsters-walk.png","frames":[{"x":95,"y":17,"w":308,"h":354,"pivotX":257,"pivotY":368},{"x":509,"y":21,"w":341,"h":351,"pivotX":708,"pivotY":369},{"x":994,"y":23,"w":293,"h":351,"pivotX":1148,"pivotY":371},{"x":1393,"y":16,"w":335,"h":360,"pivotX":1592,"pivotY":373},{"x":4,"y":389,"w":426,"h":467,"pivotX":248,"pivotY":853},{"x":453,"y":395,"w":434,"h":472,"pivotX":701,"pivotY":864},{"x":921,"y":390,"w":409,"h":471,"pivotX":1146,"pivotY":858},{"x":1359,"y":393,"w":408,"h":471,"pivotX":1590,"pivotY":861}]}};
@@ -18,7 +19,32 @@ const fmt=t=>{const s=Math.floor(t);return `${String(Math.floor(s/60)).padStart(
 $('best').textContent=best?.time?fmt(best.time):'—';
 function beep(freq,duration=.12,type='sine',volume=.045){if(!sound)return;try{audio??=new(window.AudioContext||window.webkitAudioContext)();audio.resume();const o=audio.createOscillator(),g=audio.createGain();o.type=type;o.frequency.setValueAtTime(freq,audio.currentTime);o.frequency.exponentialRampToValueAtTime(freq*.55,audio.currentTime+duration);g.gain.setValueAtTime(volume,audio.currentTime);g.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);o.connect(g);g.connect(audio.destination);o.start();o.stop(audio.currentTime+duration)}catch{}}
 function toast(msg){$('toast').textContent=msg;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),2400)}
-function start(){if(!assetsReady)return;archer.reset();canvas.focus({preventScroll:true});game.reset();fx=[];castNotice=null;for(const a of feedbackAnimations)a.cancel();feedbackAnimations.length=0;$('castNotice').hidden=true;flash=0;shake=0;$('feedback').textContent='輸入魔物名字，即可施放目前法術。';$('feedback').className='';previousMode='';renderUI();beep(440)}
+function renderStory(){
+ const page=storyBook.current();
+ $('storyChapter').textContent=page.chapter;$('storyTitle').textContent=page.title;$('storySpeaker').textContent=page.speaker;
+ $('storyParagraphs').replaceChildren(...page.paragraphs.map(text=>{const p=document.createElement('p');p.textContent=text;return p}));
+ $('storyAside').textContent=page.aside;
+ $('storyTranslation').classList.toggle('revealed',page.reveal);$('storyTranslation').setAttribute('aria-hidden',String(!page.reveal));
+ $('storyPrevious').disabled=storyBook.index===0;
+ $('storyNext').textContent=storyBook.index===ForestStory.PAGES.length-1?'前往箭塔 →':'繼續聆聽 →';
+ $('storyProgress').textContent=`${storyBook.index+1} / ${ForestStory.PAGES.length}`;
+ $('storyTitle').focus({preventScroll:true});
+ if(!reducedMotion.matches)$('storyParagraphs').animate([{opacity:.3,transform:'translateY(5px)'},{opacity:1,transform:'translateY(0)'}],{duration:300});
+}
+function openStory(){
+ game.mode='story';game.enemies=[];game.input='';storyBook.reset();renderUI();
+ if(!$('storyDialog').open)$('storyDialog').showModal();renderStory();
+}
+function closeStory(){
+ if($('storyDialog').open)$('storyDialog').close();game.mode='start';renderUI();
+ (assetsReady?$('start'):$('replayStory')).focus({preventScroll:true});
+}
+function start(){if(!assetsReady||$('storyDialog').open)return;archer.reset();canvas.focus({preventScroll:true});game.reset();fx=[];castNotice=null;for(const a of feedbackAnimations)a.cancel();feedbackAnimations.length=0;$('castNotice').hidden=true;flash=0;shake=0;$('feedback').textContent='輸入魔物真名，協助魔法師施放目前法術。';$('feedback').className='';previousMode='';renderUI();beep(440)}
+$('replayStory').onclick=openStory;
+$('storyNext').onclick=()=>{if(storyBook.next())renderStory();else closeStory()};
+$('storyPrevious').onclick=()=>{storyBook.previous();renderStory()};
+$('skipStory').onclick=closeStory;
+$('storyDialog').addEventListener('cancel',e=>{e.preventDefault();closeStory()});
 $('start').onclick=start;$('again').onclick=start;$('restartPaused').onclick=start;
 $('home').onclick=()=>{game.mode='start';game.enemies=[];game.input='';renderUI()};$('pause').onclick=()=>{game.pause();renderUI()};$('resume').onclick=()=>{game.pause();renderUI()};
 $('fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('game').requestFullscreen()}catch{toast('此瀏覽器無法開啟全螢幕，可改用瀏覽器的全螢幕功能。')}};
@@ -80,7 +106,7 @@ function playCastSound(spell){
 }
 function saveResult(){const record=!best||game.time>best.time;let saved=true;if(record){best={time:game.time,kills:game.kills,casts:game.casts,accuracy:game.attempts?Math.round(game.correct/game.attempts*100):0};try{localStorage.setItem('forest-watch-best-v1',JSON.stringify(best))}catch{saved=false}$('best').textContent=fmt(best.time)}$('endTitle').textContent=record?'新的守望紀錄。':'火光仍會再燃。';$('endTime').textContent=fmt(game.time);$('endKills').textContent=game.kills;$('endCasts').textContent=game.casts;$('endAccuracy').textContent=game.attempts?`${Math.round(game.correct/game.attempts*100)}%`:'—';$('recordMessage').textContent=!saved?'瀏覽器無法儲存紀錄，本次成績仍顯示於此。':record?'你的最佳成績已儲存在此瀏覽器。':`個人最佳 ${fmt(best.time)}，再試一次吧。`}
 function renderUI(){const mode=game.mode;if(['start','ended'].includes(mode))$('castNotice').hidden=true;const t=game.target();$('time').textContent=fmt(game.time);$('hp').textContent=`${Math.ceil(game.hp)} / 100`;$('hpbar').style.width=`${game.hp}%`;$('hpbar').style.background=game.hp<30?'#e9957d':'#a9c894';$('energy').textContent=`${game.energy} / ${game.energyMax}`;$('energybar').style.width=`${game.energy/game.energyMax*100}%`;$('kills').textContent=game.kills;$('target').textContent=t?display(t.entry):'—';$('targetType').textContent=t?`${t.orc?'獸人':'哥布林'} · Tab 切換`:'等待魔物現身';$('input').replaceChildren();if(game.input&&mode==='playing'){$('input').textContent=formatInput(game.input,t?.entry);$('input').classList.toggle('bad',!!t&&!t.entry.answer.startsWith(game.input))}else{const p=document.createElement('span');p.className='placeholder';p.textContent='在此輸入注音';$('input').append(p);$('input').classList.remove('bad')}
- $('phase').textContent=game.time<60?'森林邊境 · 單字試煉':game.time<180?'暗影漸深 · 雙字詞現身':'長夜守望 · 魔物持續增援';$('pause').disabled=['start','ended'].includes(mode);$('pause').textContent=mode==='paused'?'繼續':'暫停';document.querySelectorAll('[data-spell]').forEach(b=>{b.classList.toggle('active',+b.dataset.spell===game.spell);b.setAttribute('aria-pressed',String(+b.dataset.spell===game.spell))});
+ $('phase').textContent=game.time<60?'森林邊境 · 單字試煉':game.time<180?'暗影漸深 · 雙字詞現身':'長夜守望 · 魔物持續增援';$('pause').disabled=['start','story','ended'].includes(mode);$('pause').textContent=mode==='paused'?'繼續':'暫停';document.querySelectorAll('[data-spell]').forEach(b=>{b.classList.toggle('active',+b.dataset.spell===game.spell);b.setAttribute('aria-pressed',String(+b.dataset.spell===game.spell))});
  if(mode!==previousMode){$('overlay').hidden=mode==='playing';for(const [id,m]of Object.entries({startPanel:'start',pausePanel:'paused',ritualPanel:'ritual',endPanel:'ended'}))$(id).hidden=mode!==m;if(mode==='ritual'){$('chant').textContent=display(game.chant);$('ritualMessage').textContent='完成後按 Enter，錯誤時會清空重打。';$('ritualMessage').classList.remove('bad')}previousMode=mode}if(mode==='ritual')$('ritualInput').textContent=formatInput(game.input,game.chant);
 }
 // Source rectangles and foot pivots keep differently shaped poses grounded.
@@ -168,4 +194,4 @@ function draw(dt){wall+=dt;ctx.clearRect(0,0,1200,760);ctx.save();if(shake>0){sh
  ctx.fillStyle='#e0e8db';ctx.beginPath();ctx.moveTo(3,0);ctx.lineTo(-4,-3);ctx.lineTo(-4,3);ctx.fill();
  ctx.strokeStyle='#cfb88c';ctx.beginPath();ctx.moveTo(-15,-3);ctx.lineTo(-12,0);ctx.lineTo(-15,3);ctx.stroke();ctx.restore();
  }else if(f.type==='cast'){drawCastEffect(f,p)}else if(f.type==='death'){const x=f.x+(CX-f.x)*p*p,y=f.y+(CY-60-f.y)*p*p;ctx.fillStyle='#c9b5f1';ctx.save();ctx.translate(x,y);ctx.rotate(Math.PI/4);ctx.fillRect(-4,-4,8,8);ctx.restore()}else if(f.type==='spark'){ctx.fillStyle='#ffe5a0';ctx.fillRect(f.x+Math.cos(f.angle)*f.speed*p,f.y+Math.sin(f.angle)*f.speed*p,4,4)}else{ctx.fillStyle='#edc398';ctx.fillRect(f.x-4,f.y-25,8,8)}}ctx.globalAlpha=1;fx=fx.filter(f=>f.life>0);if(flash>0){flash-=dt;ctx.fillStyle=`rgba(255,237,179,${Math.max(0,flash*.65)})`;ctx.fillRect(0,0,1200,760);ctx.strokeStyle=`rgba(255,237,179,${Math.max(0,flash)})`;ctx.lineWidth=16;ctx.beginPath();ctx.arc(CX,CY,(1.2-flash)*850,0,Math.PI*2);ctx.stroke()}ctx.restore();}
-function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;spriteYScale=(canvas.clientWidth/1200)/(canvas.clientHeight/760)||1;archer.scaleY=spriteYScale;if(castNotice&&game.mode==='playing'){castNotice.left-=dt;if(castNotice.left<=0){castNotice=null;$('castNotice').hidden=true}}game.update(dt);archer.update(dt,game.mode,game.nearest(),game.arrowIn);processEvents();draw(dt);renderUI();requestAnimationFrame(frame)}renderUI();requestAnimationFrame(frame);
+function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;spriteYScale=(canvas.clientWidth/1200)/(canvas.clientHeight/760)||1;archer.scaleY=spriteYScale;if(castNotice&&game.mode==='playing'){castNotice.left-=dt;if(castNotice.left<=0){castNotice=null;$('castNotice').hidden=true}}game.update(dt);archer.update(dt,game.mode,game.nearest(),game.arrowIn);processEvents();draw(dt);renderUI();requestAnimationFrame(frame)}renderUI();openStory();requestAnimationFrame(frame);

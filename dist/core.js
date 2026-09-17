@@ -6,7 +6,7 @@ const CHANTS=[['光明守護','ej;','au/6','g.3','cj4'],['大地之光','284','2
 const SPELLS=[{name:'中毒',color:'#b3d77e',duration:10},{name:'石化',color:'#b7c4da',duration:4.5},{name:'燃燒',color:'#ffa36f',duration:3.5},{name:'混亂',color:'#c7a0f2',duration:6}];
 const CX=600,CY=387;
 function convert(s){return [...s].map(k=>KEYS[k]||'').join('')}
-function display(entry){return entry.keys.map(k=>convert(k).replace(/ˉ/g,'')).join(' ')}
+function display(entry){return entry.keys.map(convert).join(' ')}
 function formatInput(raw,entry){if(!entry)return convert(raw);let at=0,parts=[];for(const k of entry.keys){const part=raw.slice(at,at+k.length);if(part)parts.push(convert(part));at+=k.length}if(raw.length>at)parts.push(convert(raw.slice(at)));return parts.join(' ')}
 class Game{
  constructor(random=Math.random){this.random=random;this.reset();this.mode='start'}

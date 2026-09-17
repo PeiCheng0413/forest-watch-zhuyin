@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');const {Game,WORDS,CHANTS,convert,display}=require('../dist/core.js');
-assert.equal(convert('su3'),'ㄋㄧˇ');assert.equal(display(WORDS.find(w=>w.word==='水')),'ㄕㄨㄟˇ');assert.equal(display(WORDS.find(w=>w.word==='森林')),'ㄙㄣ ㄌㄧㄣˊ');
+assert.equal(convert('su3'),'ㄋㄧˇ');assert.equal(display(WORDS.find(w=>w.word==='水')),'ㄕㄨㄟˇ');assert.equal(display(WORDS.find(w=>w.word==='森林')),'ㄙㄣˉ ㄌㄧㄣˊ');
 for(const w of [...WORDS,...CHANTS])assert.ok(/^[1qaz2wsxedcrfv5tgbyhnujm8ik,9ol.0p;/\-6347 ]+$/.test(w.answer),w.word);
 const g=new Game(()=>.3);g.reset();const e=g.spawn();g.input='wrong';g.submit();assert.equal(g.input,'');assert.equal(g.correct,0);assert.equal(g.attempts,1);
 for(let s=0;s<4;s++){g.spell=s;g.input=e.entry.answer;g.submit();assert.ok(e.effects[s]>0)}assert.equal(g.correct,4);assert.ok(e.effects.every(t=>t>0));
@@ -14,3 +14,5 @@ const tone=new Game(()=>.3);tone.reset();const named=tone.spawn();named.entry=WO
 assert.equal(WORDS.find(w=>w.word==='天空').answer,'wu0 dj/ ');assert.equal(WORDS.find(w=>w.word==='火山').answer,'cj3g0 ');assert.equal(CHANTS.find(w=>w.word==='大地之光').answer,'2842u45 ej; ');
 tone.mode='ritual';tone.chant=CHANTS.find(w=>w.word==='大地之光');tone.input=tone.chant.answer.replaceAll(' ','');tone.submit();assert.equal(tone.mode,'ritual');for(const key of tone.chant.answer)tone.type(key);tone.submit();assert.equal(tone.mode,'playing');
 console.log('PASS: 一聲空白鍵必填、Backspace 刪除、雙音節與咒語聲調判定。');
+
+assert.equal(display(WORDS.find(w=>w.word==='山')),'ㄕㄢˉ');assert.equal(display(CHANTS.find(w=>w.word==='大地之光')),'ㄉㄚˋ ㄉㄧˋ ㄓˉ ㄍㄨㄤˉ');

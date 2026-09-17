@@ -70,7 +70,7 @@
 
 ## 開發內容
 
-本版使用原生 **HTML、CSS、JavaScript 與 Canvas 2D**，不依賴前端框架或外部套件。背景為 AI 生成的像素森林素材，魔物以程式繪製像素精靈，音效以 Web Audio API 合成。
+本版使用原生 **HTML、CSS、JavaScript 與 Canvas 2D**，不依賴前端框架或外部套件。背景與角色為 AI 生成的像素素材；使用透明角色圖集呈現八方向弓箭手與四影格魔物步行，音效以 Web Audio API 合成。
 
 | 檔案 | 職責 |
 | --- | --- |
@@ -78,7 +78,11 @@
 | `dist/style.css` | 橫向電腦版面、響應式介面與狀態樣式 |
 | `dist/core.js` | 注音鍵位、詞庫、咒語、目標選取、法術、怪物行為、難度與遊戲狀態 |
 | `dist/game.js` | 鍵盤事件、Canvas 繪圖、音效、特效、畫面更新與本地紀錄 |
-| `dist/forest-battlefield.png` | 森林、草地與箭塔背景 |
+| `dist/visuals.js` | 八方向判定、瞄準與放箭動作狀態 |
+| `dist/assets/forest-empty-tower.png` | 無人物的森林箭塔背景，供動態弓箭手疊加 |
+| `dist/assets/archer-eight-directions.png` | 八方向拉弓／放箭，共 16 格透明角色圖集 |
+| `dist/assets/monsters-walk.png` | 哥布林與獸人各 4 格步行圖集 |
+| `dist/assets/frames.json` | 各影格裁切範圍與腳底落點 |
 | `dist/favicon.svg` | 網站圖示 |
 | `tests/core.cjs` | 核心遊戲規則回歸測試 |
 
@@ -100,6 +104,8 @@ python3 -m http.server 8000 --directory dist
 
 ```sh
 node tests/core.cjs
+node tests/keyboard.cjs
+node tests/visuals.cjs
 node --check dist/core.js
 node --check dist/game.js
 ```
@@ -123,3 +129,13 @@ node --check dist/game.js
 ### v1.0.3 操作修正
 
 遊玩與吟唱期間攔截 Tab 預設焦點切換；暫停後 Tab 恢復一般網頁操作。左右鍵與 Tab 優先於輸入法組字檢查處理。一聲在怪物、咒語及輸入區皆顯示「ˉ」。靜態程式附帶版本參數，避免更新後沿用舊快取。
+
+### v1.1.0 角色與射箭動畫
+
+- 弓箭手依實際射擊目標切換東、東南、南、西南、西、西北、北、東北八種朝向；射擊前拉弓，射擊時切換放箭姿勢，箭矢從弓旁朝目標飛行。
+- 哥布林更新為尖耳、皮甲、短刀與木盾造型；獸人更新為獠牙、角盔、重肩甲與巨斧，體型較大。
+- 魔物使用四影格步行動畫，依行進方向左右翻轉。石化停止步行並呈現灰白石化色；暫停與吟唱時人物動作停止。
+- 角色與注音標籤補償戰場比例，避免寬螢幕下被壓扁。素材載入完成後才允許開始。
+- 八方向、箭矢起點、拉弓與放箭、暫停凍結、素材界線與原有玩法皆有測試。
+
+素材使用內建 imagegen 產生；透明 PNG 保留原始 alpha，遊戲在執行時依圖集座標裁切，未增加外部素材或執行時服務依賴。

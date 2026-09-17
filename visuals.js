@@ -8,11 +8,12 @@ function direction8(dx,dy,fallback=2){
 }
 class ArcherMotion{
  constructor(){this.reset()}
- reset(){this.direction=2;this.scaleY=1;this.releaseLeft=0;this.drawing=false;this.target=null}
+ reset(){this.direction=2;this.scaleY=1;this.releaseLeft=0;this.drawing=false;this.target=null;this.idleTime=0}
  aim(target){if(!target)return;this.target={x:target.x,y:target.y-(target.orc?35:23)*this.scaleY};this.direction=direction8(this.target.x-ARCHER.x,(this.target.y-this.handY())/this.scaleY,this.direction)}
  handY(){return ARCHER.y-(ARCHER.y-ARCHER.handY)*this.scaleY}
  update(dt,mode,target,shotIn){
   if(mode!=='playing')return;
+  this.idleTime+=dt;
   this.releaseLeft=Math.max(0,this.releaseLeft-dt);
   if(this.releaseLeft>0)return;
   this.aim(target);this.drawing=!!target&&shotIn<.4;
@@ -21,6 +22,10 @@ class ArcherMotion{
   this.aim(target);this.releaseLeft=.26;this.drawing=false;
   const angle=this.direction*Math.PI/4;
   return {startX:ARCHER.x+Math.cos(angle)*17,startY:this.handY()+Math.sin(angle)*10*this.scaleY,x:this.target.x,y:this.target.y,direction:this.direction};
+ }
+ idlePose(){
+  if(this.drawing||this.releaseLeft>0)return {sway:0,breath:1,lean:0};
+  return {sway:Math.sin(this.idleTime*1.9)*1.15,breath:1+Math.sin(this.idleTime*2.5)*.035,lean:Math.sin(this.idleTime*1.4)*.025};
  }
  frame(){return this.direction+(this.drawing?0:8)}
 }

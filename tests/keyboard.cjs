@@ -10,3 +10,20 @@ let target=game.targetId;game.input='g';let e=press('Tab');assert.ok(e.prevented
 press('Escape');assert.equal(game.mode,'paused');assert.equal(press('Tab').prevented,false);press('Escape');assert.equal(game.mode,'playing');
 press('ArrowLeft',{repeat:true});assert.equal(game.spell,1);press('g');press('0');press(' ');assert.equal(game.input,'g0 ');
 console.log('PASS: 實際鍵盤處理器左右切法術、組字旗標、Tab 焦點攔截、反向選怪、暫停恢復 Tab、長按與一聲空白鍵。');
+
+// Exercise the real keyboard handler, including repeats and IME cancellation.
+game.reset();game.spawn();game.energy=12;
+press(' ',{timeStamp:100});assert.equal(game.input,'');assert.equal(game.mode,'playing');
+press(' ',{timeStamp:200,repeat:true});assert.equal(game.mode,'playing');
+press(' ',{timeStamp:300});assert.equal(game.mode,'ritual');
+const frozen=game.time;game.update(.05);assert.equal(game.time,frozen);
+for(const k of game.chant.answer)press(k);press('Enter');assert.equal(game.mode,'playing');assert.equal(game.energy,0);assert.equal(game.enemies.length,0);
+game.spawn();game.energy=12;press('g');press('0');press(' ',{timeStamp:500});press(' ',{timeStamp:600});assert.equal(game.mode,'playing');assert.equal(game.input,'g0  ');
+game.input='';press(' ',{timeStamp:1000});press(' ',{timeStamp:1600});assert.equal(game.mode,'playing');
+press('Escape');press('Escape');press(' ',{timeStamp:1700});assert.equal(game.mode,'playing');
+press('ArrowRight');press(' ',{timeStamp:1800});assert.equal(game.mode,'playing');
+press('a',{isComposing:true,keyCode:229});press(' ',{timeStamp:1900});assert.equal(game.mode,'playing');
+press('Backspace');press(' ',{timeStamp:2000});press('g');press('Backspace');press(' ',{timeStamp:2100});assert.equal(game.mode,'playing');
+game.energy=11;game.input='';press(' ',{timeStamp:2200});press(' ',{timeStamp:2300});assert.equal(game.mode,'playing');
+game.reset();assert.equal(game.spaceTapAt,null);
+console.log('PASS: 滿能量雙空白啟動吟唱、一聲不誤觸、長按不觸發、逾時與插入按鍵／暫停／IME 中斷、咒語清場耗能與重新開始。');

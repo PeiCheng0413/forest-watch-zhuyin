@@ -10,9 +10,12 @@ archerImage.src='assets/archer-eight-directions.png';monsterImage.src='assets/mo
 let assetsReady=false,spriteYScale=1;
 const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
 let castNotice=null;const feedbackAnimations=[];
-const assetLoads=[bg,archerImage,monsterImage,$('wandArt')].map(img=>new Promise((resolve,reject)=>{if(img.complete&&img.naturalWidth)return resolve();img.onload=resolve;img.onerror=()=>reject(new Error(img.src))}));
+// Large pixel-art files can be delayed by a slow CDN/cache. They are optional
+// for starting the game: the canvas has a fallback background and procedural
+// characters, so never leave the player trapped on the loading screen.
+const assetLoads=[bg,archerImage,monsterImage,$('wandArt')].map(img=>new Promise(resolve=>{if(img.complete&&img.naturalWidth)return resolve();img.onload=resolve;img.onerror=resolve}));
 $('start').disabled=true;$('start').textContent='正在載入森林與角色…';
-Promise.all(assetLoads).then(()=>{assetsReady=true;$('start').disabled=false;$('start').textContent='開始守護 ↗'}).catch(()=>{$('start').textContent='素材載入失敗，請重新整理';toast('角色素材尚未載入完成，請檢查連線後重新整理。')});
+Promise.all(assetLoads.map(load=>Promise.race([load,new Promise(resolve=>setTimeout(resolve,8000))]))).then(()=>{assetsReady=true;$('start').disabled=false;$('start').textContent='開始守護 ↗'});
 let fx=[],last=performance.now(),wall=0,shake=0,flash=0,sound=false,audio=null,best=null,previousMode='',toastTimer;
 try{best=JSON.parse(localStorage.getItem('forest-watch-best-v1'))}catch{}
 try{game.setEnabledSpells(JSON.parse(localStorage.getItem('forest-watch-spells-v1')))}catch{game.setEnabledSpells(null)}

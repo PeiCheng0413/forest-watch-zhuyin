@@ -10,3 +10,5 @@
 .spell.spell-off{opacity:.42;background:#111c20;border-color:#35413f;box-shadow:none}.spell.spell-off:hover{opacity:.75;border-color:#a0afa3}.spell.spell-off .spell-icon{filter:grayscale(1)}
 
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+.spell.ex-ready{border-top:2px solid #e8c782}.spell.ex-ready small{color:#f0d298;font-size:10px}.spell.ex-ready.active{box-shadow:inset 0 -2px #e8c782,0 0 10px #d6b76b33}

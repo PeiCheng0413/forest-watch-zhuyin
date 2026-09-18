@@ -39,7 +39,7 @@ function closeStory(){
  if($('storyDialog').open)$('storyDialog').close();game.mode='start';renderUI();
  (assetsReady?$('start'):$('replayStory')).focus({preventScroll:true});
 }
-function start(){if(!assetsReady||$('storyDialog').open)return;archer.reset();canvas.focus({preventScroll:true});game.reset();fx=[];castNotice=null;for(const a of feedbackAnimations)a.cancel();feedbackAnimations.length=0;$('castNotice').hidden=true;flash=0;shake=0;$('feedback').textContent='輸入魔物真名，協助魔法師施放目前法術。';$('feedback').className='';previousMode='';renderUI();beep(440)}
+function start(){if(!assetsReady||$('storyDialog').open)return;archer.reset();canvas.focus({preventScroll:true});game.reset();fx=[];castNotice=null;for(const a of feedbackAnimations)a.cancel();feedbackAnimations.length=0;$('castNotice').hidden=true;flash=0;shake=0;$('feedback').textContent='輸入任一魔物的完整真名，再按 Enter 施法。';$('feedback').className='';previousMode='';renderUI();beep(440)}
 $('replayStory').onclick=openStory;
 $('storyNext').onclick=()=>{if(storyBook.next())renderStory();else closeStory()};
 $('storyPrevious').onclick=()=>{storyBook.previous();renderStory()};
@@ -55,13 +55,12 @@ function handleGameKey(e){
  if(e.key!==' ')game.clearSpaceTap();
  const active=['playing','ritual'].includes(game.mode);
  // Game controls must be handled before IME checks, and before button defaults.
- const control=['Tab','ArrowLeft','ArrowRight','Escape'].includes(e.key);
+ const control=['ArrowLeft','ArrowRight','Escape'].includes(e.key);
  if(control){
   if(!active&&!(game.mode==='paused'&&e.key==='Escape'))return;
   e.preventDefault();e.stopPropagation();
   if(e.repeat)return;
   if(e.key==='Escape')game.pause();
-  else if(e.key==='Tab')game.select(e.shiftKey?-1:1);
   else game.changeSpell(e.key==='ArrowLeft'?-1:1);
   processEvents();renderUI();return;
  }
@@ -76,7 +75,7 @@ function handleGameKey(e){
 window.addEventListener('keydown',handleGameKey,{capture:true});
 window.addEventListener('blur',()=>game.clearSpaceTap());
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&['playing','ritual'].includes(game.mode)){game.pause();renderUI()}});
-function processEvents(){for(const e of game.events){switch(e.type){case'arrow':{const shot=archer.shoot(e),duration=Math.max(.2,Math.min(.48,Math.hypot(shot.x-shot.startX,shot.y-shot.startY)/1400));fx.push({type:'arrow',...shot,life:duration,max:duration});break;}case'cast':showCastFeedback(e);break;case'wrong':castNotice=null;$('castNotice').hidden=true;beep(110,.2,'triangle');if(game.mode==='ritual'){$('ritualMessage').textContent='咒語不正確，已清空。看清楚聲調，再試一次。';$('ritualMessage').classList.add('bad')}else{$('feedback').textContent='名字不正確，已清空。請看清楚注音與聲調。';$('feedback').className='bad'}break;case'death':fx.push({...e,life:.9,max:.9});beep(740,.08,'sine',.02);break;case'clash':fx.push({...e,life:.2,max:.2});break;case'hurt':shake=.22;beep(80,.15,'triangle');break;case'ultimate':pulseWand('#ffe5a0',true);flash=1.2;for(let i=0;i<80;i++)fx.push({type:'spark',x:CX,y:CY,angle:Math.random()*Math.PI*2,speed:80+Math.random()*650,life:1.6,max:1.6});beep(1000,1,'sine',.12);toast(`曙光降臨！清除 ${e.count} 隻魔物`);break;case'ritual':beep(700,.8);break;case'end':saveResult();break;}}game.events=[];}
+function processEvents(){for(const e of game.events){switch(e.type){case'arrow':{const shot=archer.shoot(e),duration=Math.max(.2,Math.min(.48,Math.hypot(shot.x-shot.startX,shot.y-shot.startY)/1400));fx.push({type:'arrow',...shot,life:duration,max:duration});break;}case'cast':showCastFeedback(e);break;case'wrong':castNotice=null;$('castNotice').hidden=true;beep(110,.2,'triangle');if(game.mode==='ritual'){$('ritualMessage').textContent='咒語不正確，已清空。看清楚聲調，再試一次。';$('ritualMessage').classList.add('bad')}else{$('feedback').textContent='場上沒有符合此真名的魔物，已清空。請確認名字與聲調。';$('feedback').className='bad'}break;case'death':fx.push({...e,life:.9,max:.9});beep(740,.08,'sine',.02);break;case'clash':fx.push({...e,life:.2,max:.2});break;case'hurt':shake=.22;beep(80,.15,'triangle');break;case'ultimate':pulseWand('#ffe5a0',true);flash=1.2;for(let i=0;i<80;i++)fx.push({type:'spark',x:CX,y:CY,angle:Math.random()*Math.PI*2,speed:80+Math.random()*650,life:1.6,max:1.6});beep(1000,1,'sine',.12);toast(`曙光降臨！清除 ${e.count} 隻魔物`);break;case'ritual':beep(700,.8);break;case'end':saveResult();break;}}game.events=[];}
 function showCastFeedback(e){
  const spell=SPELLS[e.spell];
  pulseWand(spell.color);
@@ -114,7 +113,7 @@ function playCastSound(spell){
  }catch{}
 }
 function saveResult(){const record=!best||game.time>best.time;let saved=true;if(record){best={time:game.time,kills:game.kills,casts:game.casts,accuracy:game.attempts?Math.round(game.correct/game.attempts*100):0};try{localStorage.setItem('forest-watch-best-v1',JSON.stringify(best))}catch{saved=false}$('best').textContent=fmt(best.time)}$('endTitle').textContent=record?'新的守望紀錄。':'火光仍會再燃。';$('endTime').textContent=fmt(game.time);$('endKills').textContent=game.kills;$('endCasts').textContent=game.casts;$('endAccuracy').textContent=game.attempts?`${Math.round(game.correct/game.attempts*100)}%`:'—';$('recordMessage').textContent=!saved?'瀏覽器無法儲存紀錄，本次成績仍顯示於此。':record?'你的最佳成績已儲存在此瀏覽器。':`個人最佳 ${fmt(best.time)}，再試一次吧。`}
-function renderUI(){const mode=game.mode;if(['start','ended'].includes(mode))$('castNotice').hidden=true;const t=game.target();$('time').textContent=fmt(game.time);$('hp').textContent=`${Math.ceil(game.hp)} / 100`;$('hpbar').style.width=`${game.hp}%`;$('hpbar').style.background=game.hp<30?'#e9957d':'#a9c894';$('energy').textContent=`${game.energy} / ${game.energyMax}`;$('wandLight').style.height=`${game.energy/game.energyMax*100}%`;$('wand').classList.toggle('ready',game.energy>=game.energyMax);$('wand').classList.toggle('resting',mode!=='playing');$('wand').style.setProperty('--wand-color',SPELLS[game.spell].color);$('wand').setAttribute('aria-label',`魔杖能量 ${game.energy} / ${game.energyMax}`);$('wandHint').textContent=game.energy>=game.energyMax?(mode==='ritual'?'吟唱中 · 曙光即將降臨':game.input?'清空輸入後，空白鍵 × 2':'已蓄滿 · 空白鍵 × 2'):'擊敗魔物，為魔杖蓄光';$('kills').textContent=game.kills;$('target').textContent=t?display(t.entry):'—';$('targetType').textContent=t?`${t.orc?'獸人':'哥布林'} · Tab 切換`:'等待魔物現身';$('input').replaceChildren();if(game.input&&mode==='playing'){$('input').textContent=formatInput(game.input,t?.entry);$('input').classList.toggle('bad',!!t&&!t.entry.answer.startsWith(game.input))}else{const p=document.createElement('span');p.className='placeholder';p.textContent='在此輸入注音';$('input').append(p);$('input').classList.remove('bad')}
+function renderUI(){const mode=game.mode;if(['start','ended'].includes(mode))$('castNotice').hidden=true;const matches=game.matches(true),exact=game.matches();$('time').textContent=fmt(game.time);$('hp').textContent=`${Math.ceil(game.hp)} / 100`;$('hpbar').style.width=`${game.hp}%`;$('hpbar').style.background=game.hp<30?'#e9957d':'#a9c894';$('energy').textContent=`${game.energy} / ${game.energyMax}`;$('wandLight').style.height=`${game.energy/game.energyMax*100}%`;$('wand').classList.toggle('ready',game.energy>=game.energyMax);$('wand').classList.toggle('resting',mode!=='playing');$('wand').style.setProperty('--wand-color',SPELLS[game.spell].color);$('wand').setAttribute('aria-label',`魔杖能量 ${game.energy} / ${game.energyMax}`);$('wandHint').textContent=game.energy>=game.energyMax?(mode==='ritual'?'吟唱中 · 曙光即將降臨':game.input?'清空輸入後，空白鍵 × 2':'已蓄滿 · 空白鍵 × 2'):'擊敗魔物，為魔杖蓄光';$('kills').textContent=game.kills;$('target').textContent='真名';$('targetType').textContent=!game.input?'直接輸入任一魔物的名字':exact.length?`名字吻合 · Enter 施法${exact.length>1?'（優先最近）':''}`:matches.length?`${matches.length} 隻名字符合 · 繼續輸入`:'沒有相符的真名';$('input').replaceChildren();if(game.input&&mode==='playing'){$('input').textContent=formatInput(game.input);$('input').classList.toggle('bad',matches.length===0)}else{const p=document.createElement('span');p.className='placeholder';p.textContent='在此輸入注音';$('input').append(p);$('input').classList.remove('bad')}
  $('phase').textContent=game.time<60?'森林邊境 · 單字試煉':game.time<180?'暗影漸深 · 雙字詞現身':'長夜守望 · 魔物持續增援';$('pause').disabled=['start','story','ended'].includes(mode);$('pause').textContent=mode==='paused'?'繼續':'暫停';document.querySelectorAll('[data-spell]').forEach(b=>{b.classList.toggle('active',+b.dataset.spell===game.spell);b.setAttribute('aria-pressed',String(+b.dataset.spell===game.spell))});
  if(mode!==previousMode){$('overlay').hidden=mode==='playing';for(const [id,m]of Object.entries({startPanel:'start',pausePanel:'paused',ritualPanel:'ritual',endPanel:'ended'}))$(id).hidden=mode!==m;if(mode==='ritual'){$('chant').textContent=display(game.chant);$('ritualMessage').textContent='完成後按 Enter，錯誤時會清空重打。';$('ritualMessage').classList.remove('bad')}previousMode=mode}if(mode==='ritual')$('ritualInput').textContent=formatInput(game.input,game.chant);
 }
@@ -148,21 +147,21 @@ function drawMonster(e){
  if(e.effects[0]>0){ctx.fillStyle='#b1dc67';for(let i=0;i<3;i++)ctx.fillRect(e.x-15+i*13,e.y-height-((game.time*15+i*9)%15),3,3)}
  if(e.effects[3]>0){ctx.strokeStyle='#cb9bed';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(e.x,e.y-height-5,15,4,game.time,0,Math.PI*1.5);ctx.stroke()}
  if(stone){ctx.strokeStyle='#d7e5eb99';ctx.lineWidth=2;ctx.strokeRect(e.x-(e.orc?29:23),e.y-height,e.orc?58:46,height+4)}
- if(e.id===game.targetId){ctx.strokeStyle=SPELLS[game.spell].color;ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(e.x,e.y+4,e.orc?30:24,10,0,0,Math.PI*2);ctx.stroke()}
+
 }
 function drawLabels(){
  const labels=[],sy=spriteYScale;
  ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='600 21px "PingFang TC", "Microsoft JhengHei", sans-serif';
  for(const e of [...game.enemies].sort((a,b)=>a.y-b.y)){
-  const txt=display(e.entry),w=ctx.measureText(txt).width+20,base=e.y-(e.orc?95:77)*sy;
+  const matched=!!game.input&&e.entry.answer.startsWith(game.input),txt=display(e.entry),w=ctx.measureText(txt).width+20,base=e.y-(e.orc?95:77)*sy;
   const x=Math.max(w/2+12,Math.min(1200-w/2-12,e.x));let y=Math.max(22*sy,base);
   for(let tries=0;tries<6;tries++){if(labels.some(l=>Math.abs(l.x-x)<(l.w+w)/2+3&&Math.abs(l.y-y)<32*sy))y-=33*sy;else break}
   labels.push({x,y,w});
   if(Math.abs(y-base)>20){ctx.strokeStyle='#c5cfaa55';ctx.beginPath();ctx.moveTo(x,y+17*sy);ctx.lineTo(e.x,e.y-(e.orc?73:55)*sy);ctx.stroke()}
   ctx.save();ctx.translate(x,y);ctx.scale(1,sy);
-  ctx.fillStyle=e.id===game.targetId?'#17251ff0':'#091b20e8';ctx.fillRect(-w/2,-15,w,30);
-  ctx.strokeStyle=e.id===game.targetId?SPELLS[game.spell].color:'#7d968157';ctx.lineWidth=1;ctx.strokeRect(-w/2,-15,w,30);
-  ctx.fillStyle=e.id===game.targetId?'#f0ecc8':'#e0e8d9';ctx.fillText(txt,0,0);
+  ctx.fillStyle=matched?'#17251ff0':'#091b20e8';ctx.fillRect(-w/2,-15,w,30);
+  ctx.strokeStyle=matched?SPELLS[game.spell].color:'#7d968157';ctx.lineWidth=1;ctx.strokeRect(-w/2,-15,w,30);
+  ctx.fillStyle=matched?'#f0ecc8':'#e0e8d9';ctx.fillText(txt,0,0);
   ctx.fillStyle='#243c31';ctx.fillRect(-w/2,16,w,3);ctx.fillStyle=e.orc?'#d2a276':'#9bbd80';ctx.fillRect(-w/2,16,w*Math.max(0,e.hp/e.maxHp),3);
   ctx.restore();
  }

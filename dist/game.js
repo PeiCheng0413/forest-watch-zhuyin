@@ -176,11 +176,11 @@ function drawMonster(e){
   // Tint only opaque sprite pixels. The light vector stays in world space after flipping.
   mc.globalCompositeOperation='source-atop';mc.fillStyle=`rgba(4,13,26,${1-light.brightness})`;mc.fillRect(0,0,160,160);
   const ly=light.y*.8,gradient=mc.createLinearGradient(80-light.x*32,98-ly*32,80+light.x*32,98+ly*32);
-  gradient.addColorStop(0,'rgba(0,7,17,.38)');gradient.addColorStop(.5,'rgba(0,0,0,0)');gradient.addColorStop(1,`rgba(255,211,132,${.12+light.brightness*.14})`);mc.fillStyle=gradient;mc.fillRect(0,0,160,160);mc.globalCompositeOperation='source-over';
+  gradient.addColorStop(0,'rgba(0,7,17,.38)');gradient.addColorStop(.5,'rgba(0,0,0,0)');gradient.addColorStop(1,`rgba(255,211,132,${.12+light.brightness*.14})`);mc.fillStyle=gradient;mc.fillRect(0,0,160,160);if(e.effects[2]>0){const glow=mc.createLinearGradient(80,130,80,65);glow.addColorStop(0,'rgba(255,137,49,.32)');glow.addColorStop(1,'rgba(245,161,78,0)');mc.fillStyle=glow;mc.fillRect(0,0,160,160)}mc.globalCompositeOperation='source-over';
   ctx.save();const hit=fx.some(f=>f.type==='cast'&&f.targetId===e.id&&f.max-f.life<.16);if(stone)ctx.filter='grayscale(1) brightness(1.15)';if(hit&&!reducedMotion.matches)ctx.filter=stone?'grayscale(1) brightness(1.8)':'brightness(1.7)';
   ctx.imageSmoothingEnabled=false;ctx.drawImage(monsterBuffer,e.x-80,e.y-130*spriteYScale,160,160*spriteYScale);ctx.restore();
  }
- if(e.effects[2]>0){for(let i=0;i<4;i++){ctx.fillStyle=i%2?'#ffe18b':'#ed8852';ctx.fillRect(e.x-15+i*8,e.y-10-Math.sin(game.time*12+i)*6,4,9)}}
+ if(e.effects[2]>0)drawBurning(e);
  if(e.effects[0]>0){ctx.fillStyle='#b1dc67';for(let i=0;i<3;i++)ctx.fillRect(e.x-15+i*13,e.y-height-((game.time*15+i*9)%15),3,3)}
  if(e.effects[3]>0){ctx.strokeStyle='#cb9bed';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(e.x,e.y-height-5,15,4,game.time,0,Math.PI*1.5);ctx.stroke()}
  if(stone){ctx.strokeStyle='#d7e5eb99';ctx.lineWidth=2;ctx.strokeRect(e.x-(e.orc?29:23),e.y-height,e.orc?58:46,height+4)}
@@ -236,10 +236,42 @@ function drawCastEffect(f,p){
  const label=f.infected?'中毒傳染':`✓ ${SPELLS[f.spell].name}${f.ex?' EX':''}${f.refreshed?'刷新':'命中'}`,w=ctx.measureText(label).width+18,y=27-(reducedMotion.matches?0:p*5);
  ctx.fillStyle='#081b20ee';ctx.fillRect(-w/2,y-13,w,26);ctx.strokeStyle=color;ctx.lineWidth=1;ctx.strokeRect(-w/2,y-13,w,26);ctx.fillStyle=color;ctx.fillText(label,0,y);ctx.restore();
 }
+// Pixel clusters use the battle clock, so fire freezes during pauses and rituals.
+function pixelFlame(x,y,height,phase){
+ for(let row=0;row<height;row+=3){
+  const t=row/height,w=Math.max(2,Math.round((1-t)*7)),bend=Math.round(Math.sin(phase+t*5)*t*4);
+  ctx.fillStyle=t>.75?'#b84e2b':'#d96a30';ctx.fillRect(Math.round(x-w+bend),Math.round(y-row),w*2,3);
+  if(t<.76){ctx.fillStyle='#f5a64a';ctx.fillRect(Math.round(x-w*.55+bend),Math.round(y-row),Math.max(2,w),3)}
+  if(t<.34){ctx.fillStyle='#ffe4a1';ctx.fillRect(Math.round(x-1+bend),Math.round(y-row),3,3)}
+ }
+}
+function drawBurning(e){
+ const t=reducedMotion.matches?0:game.time,sy=spriteYScale;ctx.save();ctx.translate(e.x,e.y);ctx.scale(1,sy);
+ ctx.fillStyle='#b46b3322';ctx.beginPath();ctx.ellipse(0,2,e.orc?27:20,7,0,0,Math.PI*2);ctx.fill();
+ for(let i=0;i<5;i++){const phase=t*8+e.id+i*1.7,h=12+(e.orc?5:0)+Math.round((Math.sin(phase)+1)*5);pixelFlame((i-2)*(e.orc?10:8),-3,h,phase)}
+ if(!reducedMotion.matches)for(let i=0;i<6;i++){const p=(t*.65+i*.17+e.id*.13)%1,x=Math.sin(i*8+e.id)*19+Math.sin(p*4+i)*3,y=-8-p*(e.orc?48:36);ctx.globalAlpha=(1-p)*.65;ctx.fillStyle=i%2?'#edb45f':'#e78638';ctx.fillRect(Math.round(x),Math.round(y),2,3);if(i<3){ctx.globalAlpha=(1-p)*.12;ctx.fillStyle='#c4b4a0';ctx.fillRect(Math.round(x+5),Math.round(y-5),5+p*5,4+p*4)}}
+ ctx.restore();
+}
+function drawMeteorRock(x,y,p){
+ ctx.save();ctx.translate(Math.round(x),Math.round(y));
+ for(let i=17;i>=0;i--){const t=i/18,size=Math.max(3,18*(1-t)),flick=Math.sin(p*35+i*2)*4;ctx.globalAlpha=(1-t)*.8;ctx.fillStyle=i%3?'#d87736':'#ffbc65';ctx.fillRect(Math.round(t*42-size/2+flick),Math.round(-t*130-size/2),Math.round(size),Math.round(size*1.5))}
+ ctx.globalAlpha=1;
+ const rows=[[-12,-22,24],[-21,-16,39],[-25,-7,48],[-22,3,46],[-16,13,34],[-8,21,17]];
+ ctx.fillStyle='#ef9849';for(const [rx,ry,w]of rows)ctx.fillRect(rx-2,ry-2,w+4,12);
+ ctx.fillStyle='#4c3733';for(const [rx,ry,w]of rows)ctx.fillRect(rx,ry,w,8);
+ ctx.fillStyle='#876048';ctx.fillRect(-14,-15,20,8);ctx.fillRect(-21,-5,11,13);ctx.fillStyle='#ab7750';ctx.fillRect(-10,-15,9,4);ctx.fillStyle='#302e30';ctx.fillRect(9,-8,10,15);ctx.fillRect(-6,12,13,7);
+ ctx.fillStyle='#e4813d';ctx.fillRect(-4,-17,4,16);ctx.fillRect(-1,-3,12,4);ctx.fillRect(8,0,4,18);ctx.fillStyle='#ffe2a2';ctx.fillRect(-2,-12,2,9);ctx.fillRect(2,-2,8,2);ctx.fillRect(9,6,2,8);ctx.restore();
+}
+function drawMeteorBlast(f,p){
+ ctx.save();ctx.strokeStyle='#eeb96e';ctx.lineWidth=2;ctx.globalAlpha=(1-p)*.55;ctx.beginPath();ctx.arc(f.x,f.y,reducedMotion.matches?300:45+p*255,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#bd7231';ctx.globalAlpha=(1-p)*.09;ctx.beginPath();ctx.arc(f.x,f.y,300,0,Math.PI*2);ctx.fill();
+ ctx.translate(f.x,f.y);ctx.scale(1,spriteYScale);
+ if(!reducedMotion.matches)for(let i=0;i<24;i++){const angle=i*2.39996,r=(25+(i%5)*12)+p*(55+(i%7)*16),x=Math.cos(angle)*r,y=Math.sin(angle)*r*.42-Math.sin(p*Math.PI)*(18+i%4*9);ctx.globalAlpha=(1-p)*.8;ctx.fillStyle=['#ffe4a1','#ed9e48','#a56238','#5e4940'][i%4];const size=2+i%3;ctx.fillRect(Math.round(x),Math.round(y),size,size);if(i<5&&p>.2){ctx.globalAlpha=(1-p)*.1;ctx.fillStyle='#b8a99a';ctx.fillRect(Math.round(x),Math.round(y-10),12+p*14,7+p*8)}}
+ ctx.globalAlpha=(1-p)*.8;for(let i=0;i<7;i++)pixelFlame((i-3)*9,-3,reducedMotion.matches?14:Math.max(3,(1-p)*30),reducedMotion.matches?i:i+p*4);ctx.restore();
+}
 function drawMeteors(){
  for(const meteor of game.meteors)for(const c of meteor.centers){
   const p=Math.max(0,Math.min(1,1-meteor.left/.6));ctx.save();ctx.strokeStyle='#ffb56b';ctx.lineWidth=2;ctx.setLineDash([9,7]);ctx.beginPath();ctx.arc(c.x,c.y,300,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#f8b75b';ctx.fillRect(c.x-9,c.y-2,18,4);ctx.fillRect(c.x-2,c.y-9,4,18);
-  if(!reducedMotion.matches){const x=c.x+130*(1-p),y=c.y-430*(1-p);ctx.fillStyle='#e86832aa';ctx.beginPath();ctx.moveTo(x-19,y-10);ctx.lineTo(x+48,y-130);ctx.lineTo(x+24,y+10);ctx.closePath();ctx.fill();ctx.fillStyle='#ffcd76';ctx.beginPath();ctx.moveTo(x-12,y);ctx.lineTo(x+28,y-80);ctx.lineTo(x+16,y+8);ctx.closePath();ctx.fill();ctx.fillStyle='#ff9e47';ctx.beginPath();ctx.moveTo(x-22,y-12);ctx.lineTo(x-6,y-25);ctx.lineTo(x+17,y-19);ctx.lineTo(x+25,y+3);ctx.lineTo(x+9,y+23);ctx.lineTo(x-16,y+18);ctx.closePath();ctx.fill();ctx.fillStyle='#71413b';ctx.fillRect(x-15,y-13,29,28);ctx.fillStyle='#a26548';ctx.fillRect(x-10,y-17,17,12);ctx.fillStyle='#f5be72';ctx.fillRect(x-3,y-8,4,19);ctx.fillRect(x,y+7,13,4)}
+  if(!reducedMotion.matches)drawMeteorRock(c.x+130*(1-p),c.y-430*(1-p),p);
   ctx.restore();
  }
 }
@@ -252,5 +284,5 @@ function draw(dt){const wr=document.querySelector('.wand-art').getBoundingClient
  ctx.strokeStyle='#f4d69c';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-17,0);ctx.lineTo(0,0);ctx.stroke();
  ctx.fillStyle='#e0e8db';ctx.beginPath();ctx.moveTo(3,0);ctx.lineTo(-4,-3);ctx.lineTo(-4,3);ctx.fill();
  ctx.strokeStyle='#cfb88c';ctx.beginPath();ctx.moveTo(-15,-3);ctx.lineTo(-12,0);ctx.lineTo(-15,3);ctx.stroke();ctx.restore();
- }else if(f.type==='meteorBlast'){ctx.save();ctx.strokeStyle='#ffc87b';ctx.fillStyle='#ff963d';ctx.globalAlpha=(1-p)*.65;ctx.lineWidth=9*(1-p)+1;ctx.beginPath();ctx.arc(f.x,f.y,reducedMotion.matches?300:40+p*260,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=(1-p)*.16;ctx.beginPath();ctx.arc(f.x,f.y,300,0,Math.PI*2);ctx.fill();ctx.restore()}else if(f.type==='area'){ctx.save();ctx.globalAlpha=(1-p)*.7;ctx.strokeStyle=SPELLS[f.spell].color;ctx.fillStyle=SPELLS[f.spell].color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(f.x,f.y,f.radius,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=(1-p)*.07;ctx.fill();ctx.restore()}else if(f.type==='cast'){drawCastEffect(f,p)}else if(f.type==='death'){const x=f.x+(wandX-f.x)*p*p,y=f.y+(wandY-f.y)*p*p;ctx.fillStyle='#c9b5f1';ctx.save();ctx.translate(x,y);ctx.rotate(Math.PI/4);ctx.fillRect(-4,-4,8,8);ctx.restore()}else if(f.type==='spark'){ctx.fillStyle='#ffe5a0';ctx.fillRect(f.x+Math.cos(f.angle)*f.speed*p,f.y+Math.sin(f.angle)*f.speed*p,4,4)}else{ctx.fillStyle='#edc398';ctx.fillRect(f.x-4,f.y-25,8,8)}}ctx.globalAlpha=1;fx=fx.filter(f=>f.life>0);if(flash>0){flash-=dt;ctx.fillStyle=`rgba(255,237,179,${Math.max(0,flash*.65)})`;ctx.fillRect(0,0,1200,760);ctx.strokeStyle=`rgba(255,237,179,${Math.max(0,flash)})`;ctx.lineWidth=16;ctx.beginPath();ctx.arc(CX,CY,(1.2-flash)*850,0,Math.PI*2);ctx.stroke()}ctx.restore();}
+ }else if(f.type==='meteorBlast'){drawMeteorBlast(f,p)}else if(f.type==='area'){ctx.save();ctx.globalAlpha=(1-p)*.7;ctx.strokeStyle=SPELLS[f.spell].color;ctx.fillStyle=SPELLS[f.spell].color;ctx.lineWidth=2;ctx.beginPath();ctx.arc(f.x,f.y,f.radius,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=(1-p)*.07;ctx.fill();ctx.restore()}else if(f.type==='cast'){drawCastEffect(f,p)}else if(f.type==='death'){const x=f.x+(wandX-f.x)*p*p,y=f.y+(wandY-f.y)*p*p;ctx.fillStyle='#c9b5f1';ctx.save();ctx.translate(x,y);ctx.rotate(Math.PI/4);ctx.fillRect(-4,-4,8,8);ctx.restore()}else if(f.type==='spark'){ctx.fillStyle='#ffe5a0';ctx.fillRect(f.x+Math.cos(f.angle)*f.speed*p,f.y+Math.sin(f.angle)*f.speed*p,4,4)}else{ctx.fillStyle='#edc398';ctx.fillRect(f.x-4,f.y-25,8,8)}}ctx.globalAlpha=1;fx=fx.filter(f=>f.life>0);if(flash>0){flash-=dt;ctx.fillStyle=`rgba(255,237,179,${Math.max(0,flash*.65)})`;ctx.fillRect(0,0,1200,760);ctx.strokeStyle=`rgba(255,237,179,${Math.max(0,flash)})`;ctx.lineWidth=16;ctx.beginPath();ctx.arc(CX,CY,(1.2-flash)*850,0,Math.PI*2);ctx.stroke()}ctx.restore();}
 function frame(now){const dt=Math.min(.05,(now-last)/1000);last=now;spriteYScale=(canvas.clientWidth/1200)/(canvas.clientHeight/760)||1;archer.scaleY=spriteYScale;if(castNotice&&game.mode==='playing'){castNotice.left-=dt;if(castNotice.left<=0){castNotice=null;$('castNotice').hidden=true}}game.update(dt);archer.update(dt,game.mode,game.nearest(),game.arrowIn);processEvents();draw(dt);renderUI();requestAnimationFrame(frame)}renderUI();openStory();requestAnimationFrame(frame);

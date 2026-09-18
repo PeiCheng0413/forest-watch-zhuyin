@@ -10,7 +10,7 @@ function display(entry){return entry.keys.map(convert).join(' ')}
 function formatInput(raw,entry){if(!entry)return convert(raw);let at=0,parts=[];for(const k of entry.keys){const part=raw.slice(at,at+k.length);if(part)parts.push(convert(part));at+=k.length}if(raw.length>at)parts.push(convert(raw.slice(at)));return parts.join(' ')}
 class Game{
  constructor(random=Math.random){this.random=random;this.reset();this.mode='start'}
- reset(){Object.assign(this,{mode:'playing',time:0,hp:100,energy:0,energyMax:12,kills:0,casts:0,attempts:0,correct:0,spell:0,input:'',enemies:[],events:[],nextId:1,spawnIn:1.8,arrowIn:.4,chant:null,pausedFrom:null,spaceTapAt:null});}
+ reset(){Object.assign(this,{mode:'playing',time:0,hp:100,energy:0,energyMax:12,kills:0,stones:0,casts:0,attempts:0,correct:0,spell:0,input:'',enemies:[],events:[],nextId:1,spawnIn:1.8,arrowIn:.4,chant:null,pausedFrom:null,spaceTapAt:null});}
  emit(type,data={}){this.events.push({type,...data})}
  nearest(){return this.enemies.filter(e=>e.hp>0).sort((a,b)=>Math.hypot(a.x-CX,a.y-CY)-Math.hypot(b.x-CX,b.y-CY))[0]}
  matches(prefix=false){return this.enemies.filter(e=>e.hp>0&&this.input&&(prefix?e.entry.answer.startsWith(this.input):e.entry.answer===this.input)).sort((a,b)=>Math.hypot(a.x-CX,a.y-CY)-Math.hypot(b.x-CX,b.y-CY)||a.id-b.id)}
@@ -21,7 +21,7 @@ class Game{
  type(key){if(!['playing','ritual'].includes(this.mode))return;if(key==='Backspace'){this.input=this.input.slice(0,-1);return}if(!KEYS[key]||this.input.length>=45)return;this.input+=key;}
  submit(){if(!['playing','ritual'].includes(this.mode))return;const target=this.mode==='playing'?this.matches()[0]:null;const entry=this.mode==='ritual'?this.chant:target?.entry;if(!this.input)return;this.attempts++;if(!entry||this.input!==entry.answer){this.input='';this.emit('wrong');return}this.correct++;this.casts++;
  if(this.mode==='ritual'){this.kills+=this.enemies.length;this.emit('ultimate',{count:this.enemies.length});this.enemies=[];this.energy=0;this.input='';this.mode='playing';this.spawnIn=2;return}
- const e=target,refreshed=e.effects[this.spell]>0;e.effects[this.spell]=SPELLS[this.spell].duration;this.emit('cast',{x:e.x,y:e.y,spell:this.spell,targetId:e.id,targetLabel:display(e.entry),refreshed});this.input='';}
+ const targets=this.matches();for(const e of targets){const refreshed=e.effects[this.spell]>0;e.effects[this.spell]=SPELLS[this.spell].duration;this.emit('cast',{x:e.x,y:e.y,spell:this.spell,targetId:e.id,targetLabel:display(e.entry),refreshed,count:targets.length,announce:e===targets[0]})}this.input='';}
  spawn(){const r=this.random,angle=r()*Math.PI*2;const doubleChance=Math.min(.75,Math.max(0,(this.time-60)/200));let pool=WORDS.filter(w=>w.keys.length===(r()<doubleChance?2:1));const used=new Set(this.enemies.map(e=>e.entry.answer));const unused=pool.filter(w=>!used.has(w.answer));if(unused.length)pool=unused;const entry=pool[Math.floor(r()*pool.length)];const orc=this.time>35&&r()<Math.min(.55,.15+this.time/500);const hp=(orc?72:30)*(1+this.time/500);const e={id:this.nextId++,x:CX+Math.cos(angle)*520,y:CY+Math.sin(angle)*300,entry,orc,hp,maxHp:hp,speed:Math.min(orc?26:39,(orc?9:13)+this.time/40),effects:[0,0,0,0],attackIn:0,facingX:Math.cos(angle)>0?-1:1,moving:true};this.enemies.push(e);return e;}
  pause(){this.clearSpaceTap();if(['playing','ritual'].includes(this.mode)){this.pausedFrom=this.mode;this.mode='paused'}else if(this.mode==='paused'){this.mode=this.pausedFrom||'playing'}}
  update(dt){if(this.mode!=='playing')return;dt=Math.min(.05,Math.max(0,dt));this.time+=dt;this.spawnIn-=dt;this.arrowIn-=dt;if(this.spawnIn<=0){this.spawn();this.spawnIn=Math.max(.65,6-this.time/55)}
@@ -32,7 +32,7 @@ class Game{
  if(dist>reach){e.moving=true;e.x+=dx/dist*e.speed*dt;e.y+=dy/dist*e.speed*dt}else if(e.attackIn<=0){e.attackIn=other?.9:1.2;if(other){other.hp-=e.orc?15:9;this.emit('clash',{x:other.x,y:other.y})}else{this.hp=Math.max(0,this.hp-(e.orc?5:2));this.emit('hurt')}}
  }
  if(this.arrowIn<=0){const target=this.nearest();if(target){target.hp-=9;this.emit('arrow',{x:target.x,y:target.y})}this.arrowIn=1.45}
- const dead=this.enemies.filter(e=>e.hp<=0);for(const e of dead){this.kills++;this.energy=Math.min(this.energyMax,this.energy+1);this.emit('death',{x:e.x,y:e.y})}this.enemies=this.enemies.filter(e=>e.hp>0);
+ const dead=this.enemies.filter(e=>e.hp<=0);for(const e of dead){this.kills++;this.stones++;this.energy=Math.min(this.energyMax,this.energy+1);this.emit('death',{x:e.x,y:e.y})}this.enemies=this.enemies.filter(e=>e.hp>0);
  if(this.hp<=0){this.mode='ended';this.emit('end');return}
  }
 }

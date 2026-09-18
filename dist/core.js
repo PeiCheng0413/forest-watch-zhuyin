@@ -5,6 +5,7 @@ const WORDS=[['火','cj3'],['木','aj4'],['山','g0'],['水','gjo3'],['風','z/'
 const CHANTS=[['光明守護','ej;','au/6','g.3','cj4'],['大地之光','284','2u4','5','ej;'],['星火之力','vu/','cj3','5','xu4']].map(([word,...syllables])=>{const keys=syllables.map(k=>/[6347]$/.test(k)?k:k+' ');return {word,keys,answer:keys.join('')}});
 const SPELLS=[{name:'中毒',color:'#b3d77e',duration:10},{name:'石化',color:'#b7c4da',duration:4.5},{name:'燃燒',color:'#ffa36f',duration:3.5},{name:'混亂',color:'#c7a0f2',duration:6}];
 const CX=600,CY=387;
+const POISON={radius:80,interval:1,maxDuration:5};
 function convert(s){return [...s].map(k=>KEYS[k]||'').join('')}
 function display(entry){return entry.keys.map(convert).join(' ')}
 function formatInput(raw,entry){if(!entry)return convert(raw);let at=0,parts=[];for(const k of entry.keys){const part=raw.slice(at,at+k.length);if(part)parts.push(convert(part));at+=k.length}if(raw.length>at)parts.push(convert(raw.slice(at)));return parts.join(' ')}
@@ -33,9 +34,22 @@ class Game{
  type(key){if(!['playing','ritual'].includes(this.mode))return;if(key==='Backspace'){this.input=this.input.slice(0,-1);return}if(!KEYS[key]||this.input.length>=45)return;this.input+=key;}
  submit(){if(!['playing','ritual'].includes(this.mode))return;const target=this.mode==='playing'?this.matches()[0]:null;const entry=this.mode==='ritual'?this.chant:target?.entry;if(!this.input)return;this.attempts++;if(!entry||this.input!==entry.answer){this.input='';this.emit('wrong');return}this.correct++;this.casts++;
  if(this.mode==='ritual'){this.kills+=this.enemies.length;this.emit('ultimate',{count:this.enemies.length});this.enemies=[];this.energy=0;this.input='';this.mode='playing';this.spawnIn=2;return}
- const targets=this.matches();for(const e of targets){const refreshed=e.effects[this.spell]>0;e.effects[this.spell]=SPELLS[this.spell].duration;this.emit('cast',{x:e.x,y:e.y,spell:this.spell,targetId:e.id,targetLabel:display(e.entry),refreshed,count:targets.length,announce:e===targets[0]})}this.input='';}
- spawn(){const r=this.random,angle=r()*Math.PI*2;const doubleChance=Math.min(.75,Math.max(0,(this.time-60)/200));let pool=WORDS.filter(w=>w.keys.length===(r()<doubleChance?2:1));const used=new Set(this.enemies.map(e=>e.entry.answer));const unused=pool.filter(w=>!used.has(w.answer));if(unused.length)pool=unused;const entry=pool[Math.floor(r()*pool.length)];const orc=this.time>35&&r()<Math.min(.55,.15+this.time/500);const hp=(orc?72:30)*(1+this.time/500);const e={id:this.nextId++,x:CX+Math.cos(angle)*520,y:CY+Math.sin(angle)*300,entry,orc,hp,maxHp:hp,speed:Math.min(orc?26:39,(orc?9:13)+this.time/40),effects:[0,0,0,0],attackIn:0,facingX:Math.cos(angle)>0?-1:1,moving:true};this.enemies.push(e);return e;}
+ const targets=this.matches();for(const e of targets){const refreshed=e.effects[this.spell]>0;e.effects[this.spell]=SPELLS[this.spell].duration;if(this.spell===0)e.poisonSpreadIn=POISON.interval;this.emit('cast',{x:e.x,y:e.y,spell:this.spell,targetId:e.id,targetLabel:display(e.entry),refreshed,count:targets.length,announce:e===targets[0]})}this.input='';}
+ spawn(){const r=this.random,angle=r()*Math.PI*2;const doubleChance=Math.min(.75,Math.max(0,(this.time-60)/200));let pool=WORDS.filter(w=>w.keys.length===(r()<doubleChance?2:1));const used=new Set(this.enemies.map(e=>e.entry.answer));const unused=pool.filter(w=>!used.has(w.answer));if(unused.length)pool=unused;const entry=pool[Math.floor(r()*pool.length)];const orc=this.time>35&&r()<Math.min(.55,.15+this.time/500);const hp=(orc?72:30)*(1+this.time/500);const e={id:this.nextId++,x:CX+Math.cos(angle)*520,y:CY+Math.sin(angle)*300,entry,orc,hp,maxHp:hp,speed:Math.min(orc?26:39,(orc?9:13)+this.time/40),effects:[0,0,0,0],poisonSpreadIn:POISON.interval,attackIn:0,facingX:Math.cos(angle)>0?-1:1,moving:true};this.enemies.push(e);return e;}
  pause(){this.clearSpaceTap();if(['playing','ritual'].includes(this.mode)){this.pausedFrom=this.mode;this.mode='paused'}else if(this.mode==='paused'){this.mode=this.pausedFrom||'playing'}}
+ spreadPoison(dt){
+  // Snapshot sources: a newly infected monster waits a full second before spreading.
+  const sources=this.enemies.filter(e=>e.hp>0&&e.effects[0]>0);
+  for(const source of sources){
+   source.poisonSpreadIn=(source.poisonSpreadIn??POISON.interval)-dt;
+   if(source.poisonSpreadIn>1e-9)continue;
+   source.poisonSpreadIn=POISON.interval;
+   const target=this.enemies.filter(e=>e.hp>0&&e.id!==source.id&&e.effects[0]<=0&&Math.hypot(e.x-source.x,e.y-source.y)<=POISON.radius).sort((a,b)=>Math.hypot(a.x-source.x,a.y-source.y)-Math.hypot(b.x-source.x,b.y-source.y)||a.id-b.id)[0];
+   if(!target)continue;
+   target.effects[0]=Math.min(POISON.maxDuration,source.effects[0]);target.poisonSpreadIn=POISON.interval;
+   this.emit('infection',{sourceId:source.id,startX:source.x,startY:source.y,x:target.x,y:target.y,targetId:target.id,spell:0});
+  }
+ }
  update(dt){if(this.mode!=='playing')return;dt=Math.min(.05,Math.max(0,dt));this.time+=dt;this.spawnIn-=dt;this.arrowIn-=dt;if(this.spawnIn<=0){this.spawn();this.spawnIn=Math.max(.65,6-this.time/55)}
  for(const e of this.enemies){e.moving=false;if(e.hp<=0)continue;if(e.effects[0]>0)e.hp-=6*dt;if(e.effects[2]>0)e.hp-=13*dt;const stone=e.effects[1]>0,confused=e.effects[3]>0;e.effects=e.effects.map(t=>Math.max(0,t-dt));if(stone||e.hp<=0)continue;e.attackIn-=dt;
  let tx=CX,ty=CY,other=null;if(confused){other=this.enemies.filter(o=>o.id!==e.id&&o.hp>0).sort((a,b)=>Math.hypot(a.x-e.x,a.y-e.y)-Math.hypot(b.x-e.x,b.y-e.y))[0];if(!other)continue;tx=other.x;ty=other.y}
@@ -45,8 +59,8 @@ class Game{
  }
  if(this.arrowIn<=0){const target=this.nearest();if(target){target.hp-=9;this.emit('arrow',{x:target.x,y:target.y})}this.arrowIn=1.45}
  const dead=this.enemies.filter(e=>e.hp<=0);for(const e of dead){this.kills++;this.stones++;this.energy=Math.min(this.energyMax,this.energy+1);this.emit('death',{x:e.x,y:e.y})}this.enemies=this.enemies.filter(e=>e.hp>0);
- if(this.hp<=0){this.mode='ended';this.emit('end');return}
+ if(this.hp<=0){this.mode='ended';this.emit('end');return}this.spreadPoison(dt);
  }
 }
-const api={Game,KEYS,WORDS,CHANTS,SPELLS,CX,CY,convert,display,formatInput};if(typeof module!=='undefined')module.exports=api;else root.ForestCore=api;
+const api={Game,KEYS,WORDS,CHANTS,SPELLS,POISON,CX,CY,convert,display,formatInput};if(typeof module!=='undefined')module.exports=api;else root.ForestCore=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -2,11 +2,11 @@
 const {Game,KEYS,SPELLS,CX,CY,display,formatInput}=ForestCore;
 const game=new Game();
 const storyBook=new ForestStory.StoryBook();const $=id=>document.getElementById(id);const canvas=$('canvas'),ctx=canvas.getContext('2d');const bg=new Image();bg.src='assets/forest-empty-tower.png';
-const {ARCHER,ArcherMotion}=ForestVisuals;
+const {ARCHER,ArcherMotion,monsterPose,towerLight}=ForestVisuals;
 const archer=new ArcherMotion();
 const spriteMeta={"archer":{"file":"archer-eight-directions.png","frames":[{"x":47,"y":21,"w":265,"h":270,"pivotX":154,"pivotY":288},{"x":370,"y":37,"w":231,"h":256,"pivotX":468,"pivotY":290},{"x":705,"y":25,"w":172,"h":268,"pivotX":784,"pivotY":290},{"x":972,"y":54,"w":235,"h":239,"pivotX":1095,"pivotY":290},{"x":18,"y":327,"w":278,"h":276,"pivotX":150,"pivotY":600},{"x":370,"y":330,"w":225,"h":274,"pivotX":483,"pivotY":601},{"x":718,"y":323,"w":156,"h":278,"pivotX":788,"pivotY":598},{"x":980,"y":327,"w":222,"h":276,"pivotX":1090,"pivotY":600},{"x":46,"y":642,"w":241,"h":267,"pivotX":154,"pivotY":906},{"x":372,"y":653,"w":220,"h":256,"pivotX":468,"pivotY":906},{"x":699,"y":645,"w":188,"h":267,"pivotX":784,"pivotY":909},{"x":975,"y":664,"w":223,"h":247,"pivotX":1095,"pivotY":908},{"x":44,"y":941,"w":251,"h":275,"pivotX":165,"pivotY":1213},{"x":370,"y":941,"w":225,"h":275,"pivotX":483,"pivotY":1213},{"x":706,"y":941,"w":168,"h":275,"pivotX":791,"pivotY":1213},{"x":983,"y":941,"w":216,"h":275,"pivotX":1094,"pivotY":1213}]},"monsters":{"file":"monsters-walk.png","frames":[{"x":95,"y":17,"w":308,"h":354,"pivotX":257,"pivotY":368},{"x":509,"y":21,"w":341,"h":351,"pivotX":708,"pivotY":369},{"x":994,"y":23,"w":293,"h":351,"pivotX":1148,"pivotY":371},{"x":1393,"y":16,"w":335,"h":360,"pivotX":1592,"pivotY":373},{"x":4,"y":389,"w":426,"h":467,"pivotX":248,"pivotY":853},{"x":453,"y":395,"w":434,"h":472,"pivotX":701,"pivotY":864},{"x":921,"y":390,"w":409,"h":471,"pivotX":1146,"pivotY":858},{"x":1359,"y":393,"w":408,"h":471,"pivotX":1590,"pivotY":861}]}};
 const archerImage=new Image(),monsterImage=new Image();
-archerImage.src='assets/archer-eight-directions.png';monsterImage.src='assets/monsters-walk.png';
+archerImage.src='assets/archer-eight-directions.png';monsterImage.src='assets/monsters-rig.png';
 let assetsReady=false,spriteYScale=1;
 const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
 let castNotice=null;const feedbackAnimations=[];
@@ -53,6 +53,7 @@ document.querySelectorAll('[data-spell]').forEach(b=>b.onclick=()=>{if(game.mode
 function handleGameKey(e){
  if(e.ctrlKey||e.metaKey||e.altKey){game.clearSpaceTap();return;}
  if(e.key!==' ')game.clearSpaceTap();
+ if(e.key==='Tab'&&game.mode==='playing'&&!e.shiftKey){e.preventDefault();e.stopPropagation();if(!e.repeat)game.changeSpell(1);processEvents();renderUI();return;}
  const active=['playing','ritual'].includes(game.mode);
  // Game controls must be handled before IME checks, and before button defaults.
  const control=['ArrowLeft','ArrowRight','Escape'].includes(e.key);
@@ -78,10 +79,11 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&['playing'
 function processEvents(){for(const e of game.events){switch(e.type){case'arrow':{const shot=archer.shoot(e),duration=Math.max(.2,Math.min(.48,Math.hypot(shot.x-shot.startX,shot.y-shot.startY)/1400));fx.push({type:'arrow',...shot,life:duration,max:duration});break;}case'cast':showCastFeedback(e);break;case'wrong':castNotice=null;$('castNotice').hidden=true;beep(110,.2,'triangle');if(game.mode==='ritual'){$('ritualMessage').textContent='咒語不正確，已清空。看清楚聲調，再試一次。';$('ritualMessage').classList.add('bad')}else{$('feedback').textContent='場上沒有符合此真名的魔物，已清空。請確認名字與聲調。';$('feedback').className='bad'}break;case'death':fx.push({...e,life:.9,max:.9});beep(740,.08,'sine',.02);break;case'clash':fx.push({...e,life:.2,max:.2});break;case'hurt':shake=.22;beep(80,.15,'triangle');break;case'ultimate':pulseWand('#ffe5a0',true);flash=1.2;for(let i=0;i<80;i++)fx.push({type:'spark',x:CX,y:CY,angle:Math.random()*Math.PI*2,speed:80+Math.random()*650,life:1.6,max:1.6});beep(1000,1,'sine',.12);toast(`曙光降臨！清除 ${e.count} 隻魔物`);break;case'ritual':beep(700,.8);break;case'end':saveResult();break;}}game.events=[];}
 function showCastFeedback(e){
  const spell=SPELLS[e.spell];
- pulseWand(spell.color);
  fx.push({...e,life:1.25,max:1.25});
+ if(e.announce===false)return;
+ pulseWand(spell.color);
  castNotice={left:1.8};
- const message=`✓ ${spell.name}施法成功${e.refreshed?' · 效果刷新':''}`;
+ const message=`✓ ${spell.name}施法成功${e.count>1?` · ${e.count} 隻同名魔物`:e.refreshed?' · 效果刷新':''}`;
  $('castNotice').textContent=message;$('castNotice').hidden=false;
  $('castNotice').style.setProperty('--cast-color',spell.color);
  $('feedback').textContent=`${message}｜${e.targetLabel}`;$('feedback').className='good';
@@ -112,8 +114,8 @@ function playCastSound(spell){
   }
  }catch{}
 }
-function saveResult(){const record=!best||game.time>best.time;let saved=true;if(record){best={time:game.time,kills:game.kills,casts:game.casts,accuracy:game.attempts?Math.round(game.correct/game.attempts*100):0};try{localStorage.setItem('forest-watch-best-v1',JSON.stringify(best))}catch{saved=false}$('best').textContent=fmt(best.time)}$('endTitle').textContent=record?'新的守望紀錄。':'火光仍會再燃。';$('endTime').textContent=fmt(game.time);$('endKills').textContent=game.kills;$('endCasts').textContent=game.casts;$('endAccuracy').textContent=game.attempts?`${Math.round(game.correct/game.attempts*100)}%`:'—';$('recordMessage').textContent=!saved?'瀏覽器無法儲存紀錄，本次成績仍顯示於此。':record?'你的最佳成績已儲存在此瀏覽器。':`個人最佳 ${fmt(best.time)}，再試一次吧。`}
-function renderUI(){const mode=game.mode;if(['start','ended'].includes(mode))$('castNotice').hidden=true;const matches=game.matches(true),exact=game.matches();$('time').textContent=fmt(game.time);$('hp').textContent=`${Math.ceil(game.hp)} / 100`;$('hpbar').style.width=`${game.hp}%`;$('hpbar').style.background=game.hp<30?'#e9957d':'#a9c894';$('energy').textContent=`${game.energy} / ${game.energyMax}`;$('wandLight').style.height=`${game.energy/game.energyMax*100}%`;$('wand').classList.toggle('ready',game.energy>=game.energyMax);$('wand').classList.toggle('resting',mode!=='playing');$('wand').style.setProperty('--wand-color',SPELLS[game.spell].color);$('wand').setAttribute('aria-label',`魔杖能量 ${game.energy} / ${game.energyMax}`);$('wandHint').textContent=game.energy>=game.energyMax?(mode==='ritual'?'吟唱中 · 曙光即將降臨':game.input?'清空輸入後，空白鍵 × 2':'已蓄滿 · 空白鍵 × 2'):'擊敗魔物，為魔杖蓄光';$('kills').textContent=game.kills;$('target').textContent='真名';$('targetType').textContent=!game.input?'直接輸入任一魔物的名字':exact.length?`名字吻合 · Enter 施法${exact.length>1?'（優先最近）':''}`:matches.length?`${matches.length} 隻名字符合 · 繼續輸入`:'沒有相符的真名';$('input').replaceChildren();if(game.input&&mode==='playing'){$('input').textContent=formatInput(game.input);$('input').classList.toggle('bad',matches.length===0)}else{const p=document.createElement('span');p.className='placeholder';p.textContent='在此輸入注音';$('input').append(p);$('input').classList.remove('bad')}
+function saveResult(){const record=!best||game.time>best.time;let saved=true;if(record){best={time:game.time,stones:game.stones,casts:game.casts,accuracy:game.attempts?Math.round(game.correct/game.attempts*100):0};try{localStorage.setItem('forest-watch-best-v1',JSON.stringify(best))}catch{saved=false}$('best').textContent=fmt(best.time)}$('endTitle').textContent=record?'新的守望紀錄。':'火光仍會再燃。';$('endTime').textContent=fmt(game.time);$('endStones').textContent=game.stones;$('endCasts').textContent=game.casts;$('endAccuracy').textContent=game.attempts?`${Math.round(game.correct/game.attempts*100)}%`:'—';$('recordMessage').textContent=!saved?'瀏覽器無法儲存紀錄，本次成績仍顯示於此。':record?'你的最佳成績已儲存在此瀏覽器。':`個人最佳 ${fmt(best.time)}，再試一次吧。`}
+function renderUI(){const mode=game.mode;if(['start','ended'].includes(mode))$('castNotice').hidden=true;const matches=game.matches(true),exact=game.matches();$('time').textContent=fmt(game.time);$('hp').textContent=`${Math.ceil(game.hp)} / 100`;$('hpbar').style.width=`${game.hp}%`;$('hpbar').style.background=game.hp<30?'#e9957d':'#a9c894';$('energy').textContent=`${game.energy} / ${game.energyMax}`;$('wandLight').style.height=`${game.energy/game.energyMax*100}%`;$('wand').classList.toggle('ready',game.energy>=game.energyMax);$('wand').classList.toggle('resting',mode!=='playing');$('wand').style.setProperty('--wand-color',SPELLS[game.spell].color);$('wand').setAttribute('aria-label',`魔杖能量 ${game.energy} / ${game.energyMax}`);$('wandHint').textContent=game.energy>=game.energyMax?(mode==='ritual'?'吟唱中 · 曙光即將降臨':game.input?'清空輸入後，空白鍵 × 2':'已蓄滿 · 空白鍵 × 2'):'收集魔石，為魔杖蓄光';$('target').textContent='真名';$('targetType').textContent=!game.input?'直接輸入任一魔物的名字':exact.length?`名字吻合 · Enter 施法${exact.length>1?'（全部命中）':''}`:matches.length?`${matches.length} 隻名字符合 · 繼續輸入`:'沒有相符的真名';$('input').replaceChildren();if(game.input&&mode==='playing'){$('input').textContent=formatInput(game.input);$('input').classList.toggle('bad',matches.length===0)}else{const p=document.createElement('span');p.className='placeholder';p.textContent='在此輸入注音';$('input').append(p);$('input').classList.remove('bad')}
  $('phase').textContent=game.time<60?'森林邊境 · 單字試煉':game.time<180?'暗影漸深 · 雙字詞現身':'長夜守望 · 魔物持續增援';$('pause').disabled=['start','story','ended'].includes(mode);$('pause').textContent=mode==='paused'?'繼續':'暫停';document.querySelectorAll('[data-spell]').forEach(b=>{b.classList.toggle('active',+b.dataset.spell===game.spell);b.setAttribute('aria-pressed',String(+b.dataset.spell===game.spell))});
  if(mode!==previousMode){$('overlay').hidden=mode==='playing';for(const [id,m]of Object.entries({startPanel:'start',pausePanel:'paused',ritualPanel:'ritual',endPanel:'ended'}))$(id).hidden=mode!==m;if(mode==='ritual'){$('chant').textContent=display(game.chant);$('ritualMessage').textContent='完成後按 Enter，錯誤時會清空重打。';$('ritualMessage').classList.remove('bad')}previousMode=mode}if(mode==='ritual')$('ritualInput').textContent=formatInput(game.input,game.chant);
 }
@@ -134,15 +136,30 @@ function drawArcher(){
  ctx.save();ctx.translate(ARCHER.x+pose.sway,ARCHER.y);ctx.transform(1,0,pose.lean,pose.breath,0,0);
  drawSprite(archerImage,frame,-Math.cos(angle)*recoil,0,.17);ctx.restore();
 }
+const monsterBuffer=document.createElement('canvas');monsterBuffer.width=160;monsterBuffer.height=160;
+const mc=monsterBuffer.getContext('2d');
+const rigs=[
+ {body:[50,125,425,450,260,510],far:[185,650,200,330,255,685],near:[195,1060,210,390,265,1095],bodyScale:.085,legScale:.063,hip:21},
+ {body:[500,45,524,550,750,535],far:[630,620,250,390,730,670],near:[645,1045,225,430,735,1100],bodyScale:.098,legScale:.073,hip:26}
+];
+function rigPart(part,x,y,scale,angle=0){mc.save();mc.translate(x,y);mc.rotate(angle);mc.drawImage(monsterImage,part[0],part[1],part[2],part[3],(part[0]-part[4])*scale,(part[1]-part[5])*scale,part[2]*scale,part[3]*scale);mc.restore()}
 function drawMonster(e){
- const stone=e.effects[1]>0,height=(e.orc?73:55)*spriteYScale;
- const walking=!stone&&e.moving;
- const walkFrame=walking?Math.floor(game.time*(e.orc?5:7)+e.id)%4:0;
- const frame=spriteMeta.monsters.frames[(e.orc?4:0)+walkFrame];
- const bob=walking?Math.sin(game.time*(e.orc?10:14)+e.id)*.65:0;
- ctx.fillStyle='#06141788';ctx.beginPath();ctx.ellipse(e.x,e.y+3,e.orc?24:17,7,0,0,Math.PI*2);ctx.fill();
- ctx.save();const hit=fx.some(f=>f.type==='cast'&&f.targetId===e.id&&f.max-f.life<.16);if(stone)ctx.filter='grayscale(1) brightness(1.25)';if(hit&&!reducedMotion.matches)ctx.filter=stone?'grayscale(1) brightness(1.8)':'brightness(1.7)';
- drawSprite(monsterImage,frame,e.x,e.y+bob,.155,e.facingX<0);ctx.restore();
+ const stone=e.effects[1]>0,height=(e.orc?79:60)*spriteYScale,light=towerLight(e.x,e.y);
+ const pose=monsterPose(game.time,e.id,e.orc,e.moving,stone),rig=rigs[e.orc?1:0];
+ // Ground shadow extends away from the tower's light, independently of facing.
+ ctx.save();ctx.translate(e.x,e.y+3);ctx.rotate(Math.atan2(-light.y,-light.x));ctx.fillStyle='#020b10a0';ctx.beginPath();ctx.ellipse(light.shadow*.45,0,light.shadow,e.orc?8:6,0,0,Math.PI*2);ctx.fill();ctx.restore();
+ if(monsterImage.complete&&monsterImage.naturalWidth){
+  mc.clearRect(0,0,160,160);mc.save();mc.imageSmoothingEnabled=false;mc.translate(80,130);if(e.facingX<0)mc.scale(-1,1);
+  rigPart(rig.far,-4,-rig.hip,rig.legScale,pose.far);
+  rigPart(rig.near,5,-rig.hip,rig.legScale,pose.near);
+  rigPart(rig.body,0,-rig.hip+pose.bob,rig.bodyScale);mc.restore();
+  // Tint only opaque sprite pixels. The light vector stays in world space after flipping.
+  mc.globalCompositeOperation='source-atop';mc.fillStyle=`rgba(4,13,26,${1-light.brightness})`;mc.fillRect(0,0,160,160);
+  const ly=light.y*.8,gradient=mc.createLinearGradient(80-light.x*32,98-ly*32,80+light.x*32,98+ly*32);
+  gradient.addColorStop(0,'rgba(0,7,17,.38)');gradient.addColorStop(.5,'rgba(0,0,0,0)');gradient.addColorStop(1,`rgba(255,211,132,${.12+light.brightness*.14})`);mc.fillStyle=gradient;mc.fillRect(0,0,160,160);mc.globalCompositeOperation='source-over';
+  ctx.save();const hit=fx.some(f=>f.type==='cast'&&f.targetId===e.id&&f.max-f.life<.16);if(stone)ctx.filter='grayscale(1) brightness(1.15)';if(hit&&!reducedMotion.matches)ctx.filter=stone?'grayscale(1) brightness(1.8)':'brightness(1.7)';
+  ctx.imageSmoothingEnabled=false;ctx.drawImage(monsterBuffer,e.x-80,e.y-130*spriteYScale,160,160*spriteYScale);ctx.restore();
+ }
  if(e.effects[2]>0){for(let i=0;i<4;i++){ctx.fillStyle=i%2?'#ffe18b':'#ed8852';ctx.fillRect(e.x-15+i*8,e.y-10-Math.sin(game.time*12+i)*6,4,9)}}
  if(e.effects[0]>0){ctx.fillStyle='#b1dc67';for(let i=0;i<3;i++)ctx.fillRect(e.x-15+i*13,e.y-height-((game.time*15+i*9)%15),3,3)}
  if(e.effects[3]>0){ctx.strokeStyle='#cb9bed';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(e.x,e.y-height-5,15,4,game.time,0,Math.PI*1.5);ctx.stroke()}

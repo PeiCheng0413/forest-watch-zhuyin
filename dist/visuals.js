@@ -29,6 +29,14 @@ class ArcherMotion{
  }
  frame(){return this.direction+(this.drawing?0:8)}
 }
-const api={ARCHER,direction8,ArcherMotion};
+function monsterPose(time,id,orc,moving,stone){
+ const phase=time*(orc?5:7)+id,step=moving&&!stone?Math.sin(phase):0;
+ return {near:step*.28,far:-step*.28,bob:moving&&!stone?Math.cos(phase*2)*.55:0};
+}
+function towerLight(x,y){
+ const dx=600-x,dy=387-y,d=Math.hypot(dx,dy),falloff=Math.min(1,Math.hypot(dx/520,dy/300));
+ return {x:d?dx/d:0,y:d?dy/d:-1,brightness:1-.48*falloff,shadow:12+falloff*20};
+}
+const api={ARCHER,direction8,ArcherMotion,monsterPose,towerLight};
 if(typeof module!=='undefined')module.exports=api;else root.ForestVisuals=api;
 })(typeof window!=='undefined'?window:globalThis);

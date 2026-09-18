@@ -6,10 +6,10 @@ const c={game,KEYS,processEvents(){},renderUI(){},toast(){}};vm.createContext(c)
 function press(key,props={}){const e={key,prevented:false,stopped:false,preventDefault(){this.prevented=true},stopPropagation(){this.stopped=true},...props};c.handleGameKey(e);return e}
 assert.ok(press('ArrowRight').prevented);assert.equal(game.spell,1);press('ArrowLeft');assert.equal(game.spell,0);
 press('ArrowRight',{isComposing:true,keyCode:229});assert.equal(game.spell,1);
-game.input='g';assert.equal(press('Tab').prevented,false);assert.equal(game.input,'g');press('Tab',{shiftKey:true});assert.equal(game.input,'g');game.input='';
+game.input='g';const beforeTab=game.spell;assert.equal(press('Tab').prevented,true);assert.equal(game.spell,(beforeTab+1)%4);assert.equal(game.input,'g');assert.equal(press('Tab',{shiftKey:true}).prevented,false);assert.equal(game.spell,(beforeTab+1)%4);assert.equal(game.input,'g');game.input='';game.spell=1;
 press('Escape');assert.equal(game.mode,'paused');assert.equal(press('Tab').prevented,false);press('Escape');assert.equal(game.mode,'playing');
 press('ArrowLeft',{repeat:true});assert.equal(game.spell,1);press('g');press('0');press(' ');assert.equal(game.input,'g0 ');
-console.log('PASS: 實際鍵盤處理器左右切法術、組字旗標、Tab 保留原生焦點操作、長按與一聲空白鍵。');
+console.log('PASS: 實際鍵盤處理器左右切法術、組字旗標、Tab 正向切換、Shift+Tab 不切換、長按與一聲空白鍵。');
 
 // Exercise the real keyboard handler, including repeats and IME cancellation.
 game.reset();game.spawn();game.energy=12;

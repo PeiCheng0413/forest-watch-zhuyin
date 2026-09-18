@@ -27,3 +27,6 @@ press('Backspace');press(' ',{timeStamp:2000});press('g');press('Backspace');pre
 game.energy=11;game.input='';press(' ',{timeStamp:2200});press(' ',{timeStamp:2300});assert.equal(game.mode,'playing');
 game.reset();assert.equal(game.spaceTapAt,null);
 console.log('PASS: 滿能量雙空白啟動吟唱、一聲不誤觸、長按不觸發、逾時與插入按鍵／暫停／IME 中斷、咒語清場耗能與重新開始。');
+
+game.reset();game.toggleSpell(1);game.toggleSpell(3);game.input='g0';press('Tab');assert.equal(game.spell,2);press('Tab');assert.equal(game.spell,0);press('ArrowLeft');assert.equal(game.spell,2);assert.equal(game.input,'g0');
+console.log('PASS: 實際 Tab 與左右鍵略過停用法術，保留輸入。');

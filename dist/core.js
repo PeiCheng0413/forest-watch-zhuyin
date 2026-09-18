@@ -10,14 +10,26 @@ function display(entry){return entry.keys.map(convert).join(' ')}
 function formatInput(raw,entry){if(!entry)return convert(raw);let at=0,parts=[];for(const k of entry.keys){const part=raw.slice(at,at+k.length);if(part)parts.push(convert(part));at+=k.length}if(raw.length>at)parts.push(convert(raw.slice(at)));return parts.join(' ')}
 class Game{
  constructor(random=Math.random){this.random=random;this.reset();this.mode='start'}
- reset(){Object.assign(this,{mode:'playing',time:0,hp:100,energy:0,energyMax:12,kills:0,stones:0,casts:0,attempts:0,correct:0,spell:0,input:'',enemies:[],events:[],nextId:1,spawnIn:1.8,arrowIn:.4,chant:null,pausedFrom:null,spaceTapAt:null});}
+ reset(){this.enabledSpells??=[true,true,true,true];Object.assign(this,{mode:'playing',time:0,hp:100,energy:0,energyMax:12,kills:0,stones:0,casts:0,attempts:0,correct:0,spell:this.enabledSpells?.findIndex(Boolean)??0,input:'',enemies:[],events:[],nextId:1,spawnIn:1.8,arrowIn:.4,chant:null,pausedFrom:null,spaceTapAt:null});}
  emit(type,data={}){this.events.push({type,...data})}
  nearest(){return this.enemies.filter(e=>e.hp>0).sort((a,b)=>Math.hypot(a.x-CX,a.y-CY)-Math.hypot(b.x-CX,b.y-CY))[0]}
  matches(prefix=false){return this.enemies.filter(e=>e.hp>0&&this.input&&(prefix?e.entry.answer.startsWith(this.input):e.entry.answer===this.input)).sort((a,b)=>Math.hypot(a.x-CX,a.y-CY)-Math.hypot(b.x-CX,b.y-CY)||a.id-b.id)}
  clearSpaceTap(){this.spaceTapAt=null}
  activateUltimate(){if(this.mode!=='playing'||this.input||this.energy<this.energyMax)return false;this.clearSpaceTap();this.mode='ritual';this.chant=CHANTS[Math.floor(this.random()*CHANTS.length)];this.emit('ritual');return true}
  tapSpace(now){if(this.mode!=='playing'||this.input||this.energy<this.energyMax){this.clearSpaceTap();this.type(' ');return false}const previous=this.spaceTapAt;this.spaceTapAt=now;if(previous!==null&&now>=previous&&now-previous<=450){this.clearSpaceTap();return this.activateUltimate()}return false}
- changeSpell(dir){this.clearSpaceTap();if(this.mode==='playing'){this.spell=(this.spell+dir+4)%4;this.emit('spell')}}
+ setEnabledSpells(value){
+  this.enabledSpells=Array.isArray(value)&&value.length===4&&value.every(v=>typeof v==='boolean')&&value.some(Boolean)?[...value]:[true,true,true,true];
+  if(!this.enabledSpells[this.spell])this.spell=this.enabledSpells.findIndex(Boolean);
+ }
+ toggleSpell(index){
+  if(!Number.isInteger(index)||index<0||index>=4)return false;
+  if(this.enabledSpells[index]&&this.enabledSpells.filter(Boolean).length===1)return false;
+  this.clearSpaceTap();this.enabledSpells[index]=!this.enabledSpells[index];
+  if(!this.enabledSpells[this.spell])this.spell=this.nextSpell(1);
+  return true;
+ }
+ nextSpell(dir){for(let step=1;step<=4;step++){const index=(this.spell+(dir<0?-step:step)+8)%4;if(this.enabledSpells[index])return index}return this.spell}
+ changeSpell(dir){this.clearSpaceTap();if(this.mode==='playing'){this.spell=this.nextSpell(dir);this.emit('spell')}}
  type(key){if(!['playing','ritual'].includes(this.mode))return;if(key==='Backspace'){this.input=this.input.slice(0,-1);return}if(!KEYS[key]||this.input.length>=45)return;this.input+=key;}
  submit(){if(!['playing','ritual'].includes(this.mode))return;const target=this.mode==='playing'?this.matches()[0]:null;const entry=this.mode==='ritual'?this.chant:target?.entry;if(!this.input)return;this.attempts++;if(!entry||this.input!==entry.answer){this.input='';this.emit('wrong');return}this.correct++;this.casts++;
  if(this.mode==='ritual'){this.kills+=this.enemies.length;this.emit('ultimate',{count:this.enemies.length});this.enemies=[];this.energy=0;this.input='';this.mode='playing';this.spawnIn=2;return}

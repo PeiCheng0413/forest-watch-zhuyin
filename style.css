@@ -12,3 +12,4 @@
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 
 .spell.ex-ready{border-top:2px solid #e8c782}.spell.ex-ready small{color:#f0d298;font-size:10px}.spell.ex-ready.active{box-shadow:inset 0 -2px #e8c782,0 0 10px #d6b76b33}
+.loading-panel{margin:12px auto;padding:14px;max-width:540px;background:#14292c;border:1px solid #b8a66c;color:#eee4c9;text-align:left;font-size:14px}.loading-panel[hidden]{display:none}.loading-panel progress{display:block;width:100%;height:12px;margin:10px 0;accent-color:#cbb775}.loading-panel p{margin:8px 0;line-height:1.6}.loading-panel button{padding:8px 14px;border:1px solid #cbb775;color:#f1deb5;background:#273a37}.story-dialog>.loading-panel{margin:12px 20px}

@@ -16,8 +16,9 @@ document.body.append(loadingPanel);
 const loader=new ForestLoading.AssetLoader([[bg,'森林'],[archerImage,'弓箭手'],[monsterImage,'魔物'],[$('wandArt'),'法杖'],[document.querySelector('.story-art img'),'故事卷軸']].map(([image,name])=>({image,name,url:image.src})),state=>{
  assetsReady=state.ready;$('start').disabled=!state.ready;$('start').textContent=state.ready?'開始守護 ↗':'等待素材載入';loadingPanel.hidden=state.ready;
  $('assetProgress').value=state.done;$('assetProgress').max=state.total;
- $('assetStatus').textContent=`已載入 ${state.done}／${state.total} 項（${Math.round(state.done/state.total*100)}%）`+(state.failed.length?`。${state.failed.join('、')}載入失敗或等待過久，請檢查網路後重試。`:'，請稍候…');
- $('retryAssets').hidden=!state.failed.length;
+ $('assetStatus').textContent=`已載入 ${state.done}／${state.total} 項（${Math.round(state.done/state.total*100)}%）`+(state.failed.length?`。${state.failed.join('、')}載入失敗，請檢查網路後重試。`:'')+(state.slow.length?`。${state.slow.join('、')}載入較慢，仍在等待下載完成；可繼續等待或手動重試。`:!state.failed.length?'，請稍候…':'');
+ $('retryAssets').hidden=!state.failed.length&&!state.slow.length;
+ $('retryAssets').textContent=state.slow.length?'重新載入未完成素材':'重新載入失敗素材';
 });
 $('retryAssets').onclick=()=>loader.load(true);loader.load();
 let fx=[],last=performance.now(),wall=0,shake=0,flash=0,sound=false,audio=null,best=null,previousMode='',toastTimer;

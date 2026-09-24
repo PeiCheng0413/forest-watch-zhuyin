@@ -33,7 +33,7 @@ class Game{
  changeSpell(dir){this.clearSpaceTap();if(this.mode==='playing'){this.spell=this.nextSpell(dir);this.emit('spell')}}
  type(key){if(!['playing','ritual'].includes(this.mode))return;if(key==='Backspace'){this.input=this.input.slice(0,-1);return}if(!KEYS[key]||this.input.length>=45)return;this.input+=key;}
  submit(){if(!['playing','ritual'].includes(this.mode))return;const target=this.mode==='playing'?this.matches()[0]:null;const entry=this.mode==='ritual'?this.chant:target?.entry;if(!this.input)return;this.attempts++;if(!entry||this.input!==entry.answer){this.input='';this.emit('wrong');return}this.correct++;this.casts++;
- if(this.mode==='ritual'){this.kills+=this.enemies.length;this.blessings++;this.exReady=[true,true,true,true];this.meteors=[];this.emit('ultimate',{count:this.enemies.length,blessings:this.blessings});this.enemies=[];this.energy=0;this.input='';this.mode='playing';this.spawnIn=2;return}
+ if(this.mode==='ritual'){this.kills+=this.enemies.length;this.blessings++;this.energyMax++;this.exReady=[true,true,true,true];this.meteors=[];this.emit('ultimate',{count:this.enemies.length,blessings:this.blessings});this.enemies=[];this.energy=0;this.input='';this.mode='playing';this.spawnIn=2;return}
  const centers=this.matches(),ex=this.exReady[this.spell],radius=(SPELLS[this.spell].radius||0)*(ex?2.5:1);this.exReady[this.spell]=false;
  if(ex&&this.spell===2){const centersCopy=centers.map(e=>({x:e.x,y:e.y}));this.meteors.push({left:.6,centers:centersCopy});this.emit('meteorStart');this.input='';return}
  const targets=radius?this.enemies.filter(e=>e.hp>0&&centers.some(c=>Math.hypot(e.x-c.x,e.y-c.y)<=radius)):[...centers];
